@@ -15,6 +15,7 @@ import Profile from "./pages/Profile.tsx";
 import Chat from "./pages/Chat.tsx";
 import Landing from "./pages/Landing.tsx";
 import Auth from "./pages/Auth.tsx";
+import AuthCallback from "./pages/AuthCallback.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
 import History from "./pages/History.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -39,6 +40,7 @@ const App = () => (
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/landing" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/history" element={<History />} />
                 <Route path="*" element={<NotFound />} />
