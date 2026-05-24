@@ -240,19 +240,6 @@ export default function Auth() {
             transition={{ type: "spring", stiffness: 400, damping: 17 }}
             className="group relative w-full overflow-hidden border border-foreground bg-background py-3.5 px-4 flex items-center justify-center gap-3 transition-colors hover:bg-foreground hover:text-background disabled:opacity-60"
           >
-            {/* Press pulse ring */}
-            <AnimatePresence>
-              {pressed && (
-                <motion.span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 border-2 border-primary"
-                  initial={{ opacity: 0.8, scale: 1 }}
-                  animate={{ opacity: 0, scale: 1.4 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8 }}
-                />
-              )}
-            </AnimatePresence>
 
             {/* Hover sweep */}
             <motion.span
@@ -263,15 +250,6 @@ export default function Auth() {
               transition={{ duration: 0.6 }}
             />
 
-            {/* Continuous glow on press */}
-            {pressed && (
-              <motion.span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-primary/15"
-                animate={{ opacity: [0.3, 0.7, 0.3] }}
-                transition={{ duration: 1.2, repeat: Infinity }}
-              />
-            )}
 
             <AnimatePresence mode="wait">
               {loading ? (
