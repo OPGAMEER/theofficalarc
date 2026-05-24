@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Arc design system — Swiss/high-contrast monochrome with electric orange accent.
+   All colors HSL. Four themes: LIGHT (default), DARK, INDIGO, VIOLET. */
+
+@layer base {
+  :root,
+  .theme-light {
+    --bg: 0 0% 4%;
+    --surface: 0 0% 8%;
+    --inverse: 0 0% 98%;
+    --text: 140 60% 75%;
+    --text-muted: 140 20% 55%;
+    --text-inverse: 0 0% 4%;
+    --accent: 140 80% 45%;
+    --accent-hover: 140 80% 52%;
+    --accent-muted: 140 80% 45%;
+    --accent-muted-alpha: 0.14;
+    --border: 140 30% 18%;
+    --border-strong: 140 80% 45%;
+    --divider: 140 25% 12%;
+
+    /* shadcn aliases mapped to our tokens */
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--surface);
+    --secondary-foreground: var(--text);
+    --muted: var(--divider);
+    --muted-foreground: var(--text-muted);
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --input: var(--border);
+    --ring: var(--accent);
+    --radius: 0rem;
+    --arc-radius: 40px;
+  }
+
+  .theme-dark {
+    --bg: 0 0% 4%;
+    --surface: 0 0% 8%;
+    --inverse: 0 0% 98%;
+    --text: 0 0% 98%;
+    --text-muted: 240 4% 65%;
+    --text-inverse: 0 0% 4%;
+    --accent: 18 100% 58%;
+    --accent-hover: 22 100% 65%;
+    --accent-muted: 18 100% 58%;
+    --accent-muted-alpha: 0.14;
+    --border: 240 4% 16%;
+    --border-strong: 0 0% 98%;
+    --divider: 240 4% 13%;
+
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: 0 0% 4%;
+    --secondary: var(--surface);
+    --secondary-foreground: var(--text);
+    --muted: var(--divider);
+    --muted-foreground: var(--text-muted);
+    --input: var(--border);
+    --ring: var(--accent);
+  }
+
+  .theme-indigo {
+    --bg: 230 45% 5%;
+    --surface: 230 36% 10%;
+    --inverse: 240 100% 97%;
+    --text: 240 100% 97%;
+    --text-muted: 240 25% 67%;
+    --text-inverse: 230 45% 5%;
+    --accent: 240 100% 74%;
+    --accent-hover: 240 100% 80%;
+    --accent-muted: 240 100% 74%;
+    --accent-muted-alpha: 0.14;
+    --border: 230 36% 19%;
+    --border-strong: 240 100% 97%;
+    --divider: 230 32% 13%;
+
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: 230 45% 5%;
+    --secondary: var(--surface);
+    --secondary-foreground: var(--text);
+    --muted: var(--divider);
+    --muted-foreground: var(--text-muted);
+    --input: var(--border);
+    --ring: var(--accent);
+  }
+
+  .theme-violet {
+    --bg: 280 45% 5%;
+    --surface: 280 38% 9%;
+    --inverse: 280 100% 97%;
+    --text: 280 100% 97%;
+    --text-muted: 280 24% 71%;
+    --text-inverse: 280 45% 5%;
+    --accent: 280 100% 74%;
+    --accent-hover: 280 100% 80%;
+    --accent-muted: 280 100% 74%;
+    --accent-muted-alpha: 0.14;
+    --border: 280 36% 16%;
+    --border-strong: 280 100% 97%;
+    --divider: 280 32% 12%;
+
+    --background: var(--bg);
+    --foreground: var(--text);
+    --card: var(--surface);
+    --card-foreground: var(--text);
+    --popover: var(--surface);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: 280 45% 5%;
+    --secondary: var(--surface);
+    --secondary-foreground: var(--text);
+    --muted: var(--divider);
+    --muted-foreground: var(--text-muted);
+    --input: var(--border);
+    --ring: var(--accent);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+@layer utilities {
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono   { font-family: 'JetBrains Mono', monospace; }
+
+  .arc-tr { border-top-right-radius: var(--arc-radius); }
+  .arc-tl { border-top-left-radius: var(--arc-radius); }
+  .arc-br { border-bottom-right-radius: var(--arc-radius); }
+  .arc-bl { border-bottom-left-radius: var(--arc-radius); }
+
+  .mono-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: hsl(var(--text-muted)); }
+  .mono-label-strong { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: hsl(var(--text)); }
+  .mono-num { font-family: 'JetBrains Mono', monospace; font-weight: 500; letter-spacing: -0.04em; }
+
+  .hero-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 0.95;
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes pulse-soft {
+  0%,100% { opacity: 0.85; transform: scale(1); }
+  50%     { opacity: 1;    transform: scale(1.04); }
+}
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes arrow-slide {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(4px); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-marquee  { animation: marquee 30s linear infinite; }
+.animate-pulse-soft { animation: pulse-soft 2.8s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 30s linear infinite; }
+.animate-fade-up { animation: fade-up 0.5s ease-out both; }
+.animate-arrow   { animation: arrow-slide 1.4s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg,
+    hsl(var(--accent)) 0%, hsl(var(--accent-hover)) 50%, hsl(var(--accent)) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.4s linear infinite;
+}
