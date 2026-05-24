@@ -13,9 +13,6 @@ export default function Auth() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [wordIdx, setWordIdx] = useState(0);
-  const [pressed, setPressed] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [burstId, setBurstId] = useState(0);
 
   // Motion values avoid re-rendering the whole tree on every pointer move
   const px = useMotionValue(50);
