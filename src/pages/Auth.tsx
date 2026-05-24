@@ -54,19 +54,15 @@ export default function Auth() {
 
   const handleGoogle = async () => {
     setLoading(true);
-    setPressed(true);
-    setBurstId((n) => n + 1);
-    localStorage.removeItem("arc_guest");
-    const result = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin
       }
     });
-    if (result.error) {
-      toast({ title: "Google sign-in failed", description: String(result.error), variant: "destructive" });
+    if (error) {
+      toast({ title: "Google sign-in failed", description: String(error), variant: "destructive" });
       setLoading(false);
-      setPressed(false);
     }
   };
 
