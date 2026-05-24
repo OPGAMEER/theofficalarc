@@ -53,6 +53,9 @@ export default function Auth() {
   }, [px, py]);
 
   const handleGoogle = async () => {
+    setLoading(true);
+    setPressed(true);
+    setBurstId((n) => n + 1);
     localStorage.removeItem("arc_guest");
     const result = await supabase.auth.signInWithOAuth({
       provider: 'google',
