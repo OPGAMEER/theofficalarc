@@ -53,11 +53,13 @@ export default function Auth() {
   }, [px, py]);
 
   const handleGoogle = async () => {
-    setLoading(true);
-    setPressed(true);
-    setBurstId((n) => n + 1);
     localStorage.removeItem("arc_guest");
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    const result = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
     if (result.error) {
       toast({ title: "Google sign-in failed", description: String(result.error), variant: "destructive" });
       setLoading(false);
