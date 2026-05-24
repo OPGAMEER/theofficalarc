@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { fetchProfile } from "@/lib/profile-sync";
 
-const PUBLIC_ROUTES = new Set(["/auth", "/landing"]);
+const PUBLIC_ROUTES = new Set(["/auth", "/auth/callback", "/landing"]);
 
 const TABS = [
   { to: "/", icon: Home, key: "home", label: "Home" },
