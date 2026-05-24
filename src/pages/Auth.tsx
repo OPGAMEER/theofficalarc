@@ -24,6 +24,18 @@ export default function Auth() {
   }, [user, navigate]);
 
   useEffect(() => {
+    // Initial session check (handles OAuth redirect landing on /auth)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) navigate("/", { replace: true });
+    });
+    // Listen for auth state changes (SIGNED_IN after OAuth callback)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) navigate("/", { replace: true });
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
     const id = setInterval(() => setWordIdx((i) => (i + 1) % wordCycle.length), 1800);
     return () => clearInterval(id);
   }, []);
