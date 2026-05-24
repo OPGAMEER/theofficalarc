@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useMotionValue, useMotionTemplate } from "framer-motion";
 import { Loader2, Sparkles } from "lucide-react";
@@ -70,7 +70,7 @@ export default function Auth() {
   });
 
   return (
-    <main ref={wrapRef} className="relative min-h-screen w-full overflow-hidden bg-background text-foreground">
+    <main className="relative min-h-screen w-full overflow-hidden bg-background text-foreground">
       <div className="absolute inset-0 grid-bg opacity-50" />
 
       {/* Pointer-tracking spotlight */}
@@ -133,39 +133,6 @@ export default function Auth() {
         transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
       />
 
-      {/* Press burst — particles + shockwave when user clicks Continue */}
-      <AnimatePresence>
-        {pressed && (
-          <motion.div
-            key={burstId}
-            aria-hidden
-            className="pointer-events-none absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {/* Shockwave rings */}
-            {[0, 1, 2].map((r) => (
-              <motion.span
-                key={r}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary"
-                initial={{ width: 20, height: 20, opacity: 0.9 }}
-                animate={{ width: 600, height: 600, opacity: 0 }}
-                transition={{ duration: 1.4, ease: "easeOut", delay: r * 0.18 }}
-              />
-            ))}
-            {/* Particles */}
-            {burstParticles.map(({ x, y, i }) => (
-              <motion.span
-                key={i}
-                className="absolute left-1/2 top-1/2 h-1.5 w-1.5 rounded-full bg-primary"
-                initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                animate={{ x, y, opacity: 0, scale: 0.2 }}
-                transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: (i % 6) * 0.05 }}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-8">
         <motion.div
