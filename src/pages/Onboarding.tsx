@@ -234,7 +234,7 @@ export default function Onboarding() {
                   <div className="mt-6 grid grid-cols-2 gap-2 text-xs">
                     <Summary label="NAME" value={name} />
                     <Summary label="GENDER" value={sex || "—"} />
-                    <Summary label="AGE" value={String(age)} />
+                    <Summary label="AGE" value={age !== null ? String(age) : "—"} />
                     <Summary label="GOAL" value={(goal || "—").replace(/_/g, " ")} />
                   </div>
                 </div>
