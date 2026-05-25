@@ -248,7 +248,16 @@ export default function Workout() {
                   <img
                     src={media}
                     alt={`${e.name} animated tutorial`}
-                    loading="lazy"
+                    loading="eager"
+                    decoding="async"
+                    width={400}
+                    height={225}
+                    style={{
+                      transform: "translate3d(0,0,0)",
+                      willChange: "transform",
+                      backfaceVisibility: "hidden",
+                      WebkitBackfaceVisibility: "hidden",
+                    }}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     onError={(ev) => {
                       const img = ev.currentTarget as HTMLImageElement;

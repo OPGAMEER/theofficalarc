@@ -75,11 +75,6 @@ export default function Auth() {
     }
   };
 
-  // Particle ring positions for burst
-  const burstParticles = Array.from({ length: 18 }, (_, i) => {
-    const angle = (i / 18) * Math.PI * 2;
-    return { x: Math.cos(angle) * 180, y: Math.sin(angle) * 180, i };
-  });
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-background text-foreground">
@@ -243,53 +238,30 @@ export default function Auth() {
             <Sparkles className="h-3 w-3 text-primary" />
           </motion.p>
 
-          <motion.button
+          <button
             type="button"
             onClick={handleGoogle}
             disabled={loading}
-            whileHover={{ scale: 1.03, y: -3 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-            className="group relative w-full overflow-hidden border border-foreground bg-background py-3.5 px-4 flex items-center justify-center gap-3 transition-colors hover:bg-foreground hover:text-background disabled:opacity-60"
+            style={{
+              willChange: "transform",
+              transform: "translate3d(0,0,0)",
+              backfaceVisibility: "hidden",
+              WebkitBackfaceVisibility: "hidden",
+              WebkitTapHighlightColor: "transparent",
+            }}
+            className="relative w-full border border-foreground bg-background py-3.5 px-4 flex items-center justify-center gap-3 transition-colors duration-150 ease-out hover:bg-foreground hover:text-background active:opacity-80 disabled:opacity-60"
           >
-
-            {/* Hover sweep */}
-            <motion.span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 bg-primary/25"
-              initial={{ x: "-100%" }}
-              whileHover={{ x: "100%" }}
-              transition={{ duration: 0.6 }}
-            />
-
-
-            <AnimatePresence mode="wait">
+            <span className="relative z-10 inline-flex">
               {loading ? (
-                <motion.span
-                  key="load"
-                  initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
-                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                  className="relative z-10"
-                >
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                </motion.span>
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <motion.span
-                  key="g"
-                  initial={{ opacity: 0, rotate: -90 }}
-                  animate={{ opacity: 1, rotate: 0 }}
-                  exit={{ opacity: 0, rotate: 90 }}
-                  className="relative z-10"
-                >
-                  <GoogleIcon className="h-4 w-4" />
-                </motion.span>
+                <GoogleIcon className="h-4 w-4" />
               )}
-            </AnimatePresence>
+            </span>
             <span className="relative z-10 text-sm font-semibold tracking-wide">
               {loading ? "Connecting…" : "Continue with Google"}
             </span>
-          </motion.button>
+          </button>
 
           <motion.p
             initial={{ opacity: 0 }}
