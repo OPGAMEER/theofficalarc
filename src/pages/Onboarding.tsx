@@ -28,16 +28,12 @@ export default function Onboarding() {
   const { user, loading } = useAuth();
   const { profile, setProfile } = useProfile();
 
-  const googleName = (user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    (user?.email ? user.email.split("@")[0] : "")) as string;
-
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(profile.name && profile.name !== "Traveler" ? profile.name : googleName || "");
-  const [sex, setSex] = useState<string | undefined>(profile.sex);
-  const [age, setAge] = useState<number>(profile.age ?? 25);
-  const [goal, setGoal] = useState<GoalKey | undefined>(profile.goal as GoalKey | undefined);
-  const [handle, setHandle] = useState<string>(profile.handle || makeHandle(name));
+  const [name, setName] = useState<string>("");
+  const [sex, setSex] = useState<string | undefined>(undefined);
+  const [age, setAge] = useState<number | null>(null);
+  const [goal, setGoal] = useState<GoalKey | undefined>(undefined);
+  const [handle, setHandle] = useState<string>("");
 
   // keep handle in sync with name until user manually edits it
   const [handleTouched, setHandleTouched] = useState(false);
