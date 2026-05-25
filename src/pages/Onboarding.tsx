@@ -53,7 +53,7 @@ export default function Onboarding() {
   const canNext =
     (step === 0 && name.trim().length >= 2) ||
     (step === 1 && !!sex) ||
-    (step === 2 && age >= 10 && age <= 99) ||
+    (step === 2 && age !== null && age >= 10 && age <= 99) ||
     (step === 3 && !!goal) ||
     (step === 4 && handleValid);
 
