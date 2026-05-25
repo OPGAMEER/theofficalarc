@@ -184,7 +184,7 @@ export default function Onboarding() {
                 <div>
                   <h1 className="hero-text text-text" style={{ fontSize: 40, lineHeight: 1 }}>HOW OLD<br />ARE YOU?</h1>
                   <p className="mt-3 text-sm text-text-muted">Adjusts intensity and recovery.</p>
-                  <div className="mt-8"><AgeSlider value={age} onChange={setAge} /></div>
+                  <div className="mt-8"><AgeSlider value={age ?? undefined} onChange={setAge} /></div>
                 </div>
               )}
 
