@@ -75,11 +75,6 @@ export default function Auth() {
     }
   };
 
-  // Particle ring positions for burst
-  const burstParticles = Array.from({ length: 18 }, (_, i) => {
-    const angle = (i / 18) * Math.PI * 2;
-    return { x: Math.cos(angle) * 180, y: Math.sin(angle) * 180, i };
-  });
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-background text-foreground">
