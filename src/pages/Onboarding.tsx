@@ -83,7 +83,7 @@ export default function Onboarding() {
     console.log("[Onboarding] finish start", { userId: user?.id, name, sex, age, goal, handle });
 
     try {
-      setProfile({ ...profile, name: name.trim(), handle, sex, age, goal });
+      setProfile({ ...profile, name: name.trim(), handle, sex, age: age ?? undefined, goal });
       if (user?.id) {
         const res = await upsertProfile(user.id, {
           name: name.trim(),
