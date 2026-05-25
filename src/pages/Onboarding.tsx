@@ -28,16 +28,12 @@ export default function Onboarding() {
   const { user, loading } = useAuth();
   const { profile, setProfile } = useProfile();
 
-  const googleName = (user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    (user?.email ? user.email.split("@")[0] : "")) as string;
-
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(profile.name && profile.name !== "Traveler" ? profile.name : googleName || "");
-  const [sex, setSex] = useState<string | undefined>(profile.sex);
-  const [age, setAge] = useState<number>(profile.age ?? 25);
-  const [goal, setGoal] = useState<GoalKey | undefined>(profile.goal as GoalKey | undefined);
-  const [handle, setHandle] = useState<string>(profile.handle || makeHandle(name));
+  const [name, setName] = useState<string>("");
+  const [sex, setSex] = useState<string | undefined>(undefined);
+  const [age, setAge] = useState<number | null>(null);
+  const [goal, setGoal] = useState<GoalKey | undefined>(undefined);
+  const [handle, setHandle] = useState<string>("");
 
   // keep handle in sync with name until user manually edits it
   const [handleTouched, setHandleTouched] = useState(false);
@@ -57,7 +53,7 @@ export default function Onboarding() {
   const canNext =
     (step === 0 && name.trim().length >= 2) ||
     (step === 1 && !!sex) ||
-    (step === 2 && age >= 10 && age <= 99) ||
+    (step === 2 && age !== null && age >= 10 && age <= 99) ||
     (step === 3 && !!goal) ||
     (step === 4 && handleValid);
 
@@ -87,7 +83,7 @@ export default function Onboarding() {
     console.log("[Onboarding] finish start", { userId: user?.id, name, sex, age, goal, handle });
 
     try {
-      setProfile({ ...profile, name: name.trim(), handle, sex, age, goal });
+      setProfile({ ...profile, name: name.trim(), handle, sex, age: age ?? undefined, goal });
       if (user?.id) {
         const res = await upsertProfile(user.id, {
           name: name.trim(),
@@ -188,7 +184,7 @@ export default function Onboarding() {
                 <div>
                   <h1 className="hero-text text-text" style={{ fontSize: 40, lineHeight: 1 }}>HOW OLD<br />ARE YOU?</h1>
                   <p className="mt-3 text-sm text-text-muted">Adjusts intensity and recovery.</p>
-                  <div className="mt-8"><AgeSlider value={age} onChange={setAge} /></div>
+                  <div className="mt-8"><AgeSlider value={age ?? undefined} onChange={setAge} /></div>
                 </div>
               )}
 
@@ -238,7 +234,7 @@ export default function Onboarding() {
                   <div className="mt-6 grid grid-cols-2 gap-2 text-xs">
                     <Summary label="NAME" value={name} />
                     <Summary label="GENDER" value={sex || "—"} />
-                    <Summary label="AGE" value={String(age)} />
+                    <Summary label="AGE" value={age !== null ? String(age) : "—"} />
                     <Summary label="GOAL" value={(goal || "—").replace(/_/g, " ")} />
                   </div>
                 </div>
