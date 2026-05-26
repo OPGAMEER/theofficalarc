@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
+import { generateLocalWorkout } from "@/lib/local-generators";
 
 const HERO_BY_GENDER: Record<string, string> = {
   MALE:   "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
@@ -59,6 +60,21 @@ export default function Workout() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
+    const useLocalFallback = (reason?: string) => {
+      const local = generateLocalWorkout({
+        location: intake.location,
+        focus: intake.focus,
+        duration_min: intake.duration_min,
+        gender: gender || "OTHER",
+        exclude: plan?.exercises?.map((e) => e.name) ?? [],
+        seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
+      });
+      setPlan(local);
+      saveWorkoutToHistory(local);
+      setOpen(false);
+      toast.success(`Offline plan ready · ${genderLabel.toLowerCase()}${reason ? ` (${reason})` : ""}`);
+    };
+
     try {
       const { data, error } = await supabase.functions.invoke("generate-workout", {
         body: {
@@ -74,23 +90,20 @@ export default function Workout() {
       });
       if (error) {
         const status = (error as any)?.context?.status;
-        if (status === 429) toast.error("Rate limited. Try again in a moment.");
-        else if (status === 402) toast.error("AI credits exhausted. Add funds in Lovable workspace settings.");
-        else toast.error("Couldn't generate a plan. Try again.");
+        if (status === 429) { toast.error("Rate limited — using on-device generator."); useLocalFallback("rate limited"); return; }
+        if (status === 402) { toast.error("AI credits exhausted — using on-device generator."); useLocalFallback("no credits"); return; }
+        useLocalFallback("offline");
         return;
       }
       const newPlan = (data as any)?.plan as WorkoutPlan | undefined;
-      if (!newPlan?.exercises?.length) {
-        toast.error("Empty plan returned. Try again.");
-        return;
-      }
+      if (!newPlan?.exercises?.length) { useLocalFallback("empty response"); return; }
       setPlan(newPlan);
       saveWorkoutToHistory(newPlan);
       setOpen(false);
       toast.success(`New ${genderLabel.toLowerCase()} plan from Arc.`);
     } catch (e: any) {
       console.error(e);
-      toast.error("Couldn't reach Arc. Try again.");
+      useLocalFallback("offline");
     } finally {
       setLoading(false);
     }
