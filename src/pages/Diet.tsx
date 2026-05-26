@@ -7,6 +7,7 @@ import { saveDietToHistory } from "@/lib/plan-history";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
+import { generateLocalDiet } from "@/lib/local-generators";
 
 const CUISINES: { id: string; label: string; emoji: string }[] = [
   { id: "auto",        label: "Arc decides",   emoji: "✨" },
@@ -172,6 +173,19 @@ export default function Diet() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
+    const useLocalFallback = (reason?: string) => {
+      const local = generateLocalDiet({
+        diet,
+        calorie_target: nutritionTarget.target,
+        exclude: plan?.meals?.map((m) => m.name) ?? [],
+        health_issues: [allergyRulesText, healthIssues.trim()].filter(Boolean).join(". "),
+        seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
+      });
+      setPlan(local);
+      saveDietToHistory(local);
+      toast.success(`Offline meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal${reason ? ` (${reason})` : ""}`);
+    };
+
     try {
       let newPlan: DietPlan | undefined;
       let lastStatus: number | undefined;
@@ -195,7 +209,6 @@ export default function Diet() {
 
         if (!error) {
           const candidate = (data as any)?.plan as DietPlan | undefined;
-          // Client-side validator: if the plan still exceeds target, retry
           if (candidate?.kcal && Number(candidate.kcal) > nutritionTarget.target && attempt < MAX_ATTEMPTS - 1) {
             console.warn(`[diet] plan over target (${candidate.kcal}/${nutritionTarget.target}), retrying…`);
             toast.message("Recalibrating to fit your calorie cap…");
@@ -207,16 +220,16 @@ export default function Diet() {
 
         lastStatus = (error as any)?.context?.status;
         if (lastStatus !== 422 || attempt === MAX_ATTEMPTS - 1) {
-          if (lastStatus === 429) toast.error("Rate limited. Try again in a moment.");
-          else if (lastStatus === 402) toast.error("AI credits exhausted. Add funds in Lovable workspace settings.");
-          else if (lastStatus === 422) toast.error("Plan missed your calorie target or diet mode. Try again.");
-          else toast.error("Couldn't generate a plan. Try again.");
+          if (lastStatus === 429) toast.error("Rate limited — using on-device generator.");
+          else if (lastStatus === 402) toast.error("AI credits exhausted — using on-device generator.");
+          else if (lastStatus === 422) toast.error("Plan missed target — using on-device generator.");
+          useLocalFallback("offline");
           return;
         }
       }
 
       if (!newPlan?.meals?.length) {
-        toast.error(lastStatus === 422 ? "Plan missed your target. Try again." : "Empty plan returned. Try again.");
+        useLocalFallback("empty response");
         return;
       }
 
@@ -229,7 +242,7 @@ export default function Diet() {
       }
     } catch (e: any) {
       console.error(e);
-      toast.error("Couldn't reach Arc. Try again.");
+      useLocalFallback("offline");
     } finally {
       setLoading(false);
     }
