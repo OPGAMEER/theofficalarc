@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
 import { generateLocalDiet } from "@/lib/local-generators";
+import { runInBackground, withTimeout } from "@/lib/resilient-actions";
 
 const CUISINES: { id: string; label: string; emoji: string }[] = [
   { id: "auto",        label: "Arc decides",   emoji: "✨" },
@@ -182,7 +183,7 @@ export default function Diet() {
         seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
       });
       setPlan(local);
-      saveDietToHistory(local);
+      runInBackground("diet-history", saveDietToHistory(local));
       toast.success(`Offline meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal${reason ? ` (${reason})` : ""}`);
     };
 
@@ -192,20 +193,24 @@ export default function Diet() {
 
       const MAX_ATTEMPTS = 3;
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-        const { data, error } = await supabase.functions.invoke("generate-diet", {
-          body: {
-            height_cm: Number(height) || 178,
-            weight_kg: Number(weight) || 76,
-            goal,
-            cuisine,
-            diet,
-            calorie_target: nutritionTarget.target,
-            variety,
-            exclude: plan?.meals?.map((m) => m.name) ?? [],
-            ingredients: ingredients.trim().slice(0, 500),
-            health_issues: [allergyRulesText, healthIssues.trim()].filter(Boolean).join(". ").slice(0, 1000),
-          },
-        });
+        const { data, error } = await withTimeout(
+          supabase.functions.invoke("generate-diet", {
+            body: {
+              height_cm: Number(height) || 178,
+              weight_kg: Number(weight) || 76,
+              goal,
+              cuisine,
+              diet,
+              calorie_target: nutritionTarget.target,
+              variety,
+              exclude: plan?.meals?.map((m) => m.name) ?? [],
+              ingredients: ingredients.trim().slice(0, 500),
+              health_issues: [allergyRulesText, healthIssues.trim()].filter(Boolean).join(". ").slice(0, 1000),
+            },
+          }),
+          2500,
+          "Diet generation",
+        );
 
         if (!error) {
           const candidate = (data as any)?.plan as DietPlan | undefined;
@@ -234,7 +239,7 @@ export default function Diet() {
       }
 
       setPlan(newPlan);
-      saveDietToHistory(newPlan);
+      runInBackground("diet-history", saveDietToHistory(newPlan));
       if (Number(newPlan.kcal) > nutritionTarget.target) {
         toast.warning(`Plan is ${Number(newPlan.kcal) - nutritionTarget.target} kcal over target. Tap regenerate to retry.`);
       } else {
