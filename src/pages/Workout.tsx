@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
 import { generateLocalWorkout } from "@/lib/local-generators";
+import { runInBackground, withTimeout } from "@/lib/resilient-actions";
 
 const HERO_BY_GENDER: Record<string, string> = {
   MALE:   "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
@@ -70,24 +71,28 @@ export default function Workout() {
         seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
       });
       setPlan(local);
-      saveWorkoutToHistory(local);
+      runInBackground("workout-history", saveWorkoutToHistory(local));
       setOpen(false);
       toast.success(`Offline plan ready · ${genderLabel.toLowerCase()}${reason ? ` (${reason})` : ""}`);
     };
 
     try {
-      const { data, error } = await supabase.functions.invoke("generate-workout", {
-        body: {
-          location: intake.location,
-          equipment: intake.equipment,
-          focus: intake.focus,
-          duration_min: intake.duration_min,
-          gender: gender || "OTHER",
-          variety: intake.variety,
-          exclude: plan?.exercises?.map((e) => e.name) ?? [],
-          client_seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("generate-workout", {
+          body: {
+            location: intake.location,
+            equipment: intake.equipment,
+            focus: intake.focus,
+            duration_min: intake.duration_min,
+            gender: gender || "OTHER",
+            variety: intake.variety,
+            exclude: plan?.exercises?.map((e) => e.name) ?? [],
+            client_seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
+          },
+        }),
+        2500,
+        "Workout generation",
+      );
       if (error) {
         const status = (error as any)?.context?.status;
         if (status === 429) { toast.error("Rate limited — using on-device generator."); useLocalFallback("rate limited"); return; }
@@ -98,7 +103,7 @@ export default function Workout() {
       const newPlan = (data as any)?.plan as WorkoutPlan | undefined;
       if (!newPlan?.exercises?.length) { useLocalFallback("empty response"); return; }
       setPlan(newPlan);
-      saveWorkoutToHistory(newPlan);
+      runInBackground("workout-history", saveWorkoutToHistory(newPlan));
       setOpen(false);
       toast.success(`New ${genderLabel.toLowerCase()} plan from Arc.`);
     } catch (e: any) {

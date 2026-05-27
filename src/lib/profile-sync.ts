@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile } from "@/lib/arc-store";
+import { withTimeout } from "@/lib/resilient-actions";
 
 export type RemoteProfile = {
   id: string;
@@ -17,27 +18,49 @@ export type RemoteProfile = {
 };
 
 export async function fetchProfile(userId: string): Promise<RemoteProfile | null> {
-  const { data, error } = await supabase
-    .from("profiles" as any)
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) {
-    console.warn("[profile] fetch error", error);
+  try {
+    const { data, error } = await withTimeout(
+      Promise.resolve(
+        supabase
+          .from("profiles" as any)
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle() as any,
+      ) as Promise<{ data: unknown; error: unknown }>,
+      2500,
+      "Profile fetch",
+    );
+    if (error) {
+      console.warn("[profile] fetch error", error);
+      return null;
+    }
+    return (data as unknown) as RemoteProfile | null;
+  } catch (error) {
+    console.warn("[profile] fetch unavailable", error);
     return null;
   }
-  return (data as unknown) as RemoteProfile | null;
 }
 
 export async function upsertProfile(userId: string, patch: Partial<RemoteProfile>) {
-  const { error } = await supabase
-    .from("profiles" as any)
-    .upsert({ id: userId, ...patch } as any, { onConflict: "id" });
-  if (error) {
-    console.warn("[profile] upsert error", error);
+  try {
+    const { error } = await withTimeout(
+      Promise.resolve(
+        supabase
+          .from("profiles" as any)
+          .upsert({ id: userId, ...patch } as any, { onConflict: "id" }) as any,
+      ) as Promise<{ error: unknown }>,
+      2500,
+      "Profile save",
+    );
+    if (error) {
+      console.warn("[profile] upsert error", error);
+      return { ok: false as const, error };
+    }
+    return { ok: true as const };
+  } catch (error) {
+    console.warn("[profile] upsert unavailable", error);
     return { ok: false as const, error };
   }
-  return { ok: true as const };
 }
 
 export function remoteToLocal(r: RemoteProfile): Profile {

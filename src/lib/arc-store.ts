@@ -65,6 +65,18 @@ const KEYS = {
   chat: "arc_chat",
 } as const;
 
+const DYNAMIC_CACHE_VERSION = "2026-05-27-generation-reset";
+const DYNAMIC_CACHE_VERSION_KEY = "arc_dynamic_cache_version";
+
+function resetStaleDynamicCache() {
+  if (typeof window === "undefined") return;
+  try {
+    if (localStorage.getItem(DYNAMIC_CACHE_VERSION_KEY) === DYNAMIC_CACHE_VERSION) return;
+    [KEYS.workout, KEYS.diet, KEYS.chat, "arc_workout_history", "arc_diet_history"].forEach((key) => localStorage.removeItem(key));
+    localStorage.setItem(DYNAMIC_CACHE_VERSION_KEY, DYNAMIC_CACHE_VERSION);
+  } catch {}
+}
+
 const DEFAULT_PROFILE: Profile = {
   name: "",
   handle: "",
@@ -75,6 +87,7 @@ const DEFAULT_PROFILE: Profile = {
 
 function read<T>(k: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
+  resetStaleDynamicCache();
   try { const v = localStorage.getItem(k); return v ? JSON.parse(v) as T : fallback; } catch { return fallback; }
 }
 function write<T>(k: string, v: T) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }

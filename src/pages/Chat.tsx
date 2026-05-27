@@ -4,6 +4,7 @@ import { ArrowRight, X } from "lucide-react";
 import { useChatHistory, type ChatMessage } from "@/lib/arc-store";
 import { supabase } from "@/integrations/supabase/client";
 import { localChatReply } from "@/lib/local-chat";
+import { withTimeout } from "@/lib/resilient-actions";
 
 export default function Chat() {
   const navigate = useNavigate();
@@ -28,9 +29,13 @@ export default function Chat() {
 
     try {
       const convo = next.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
-      const { data, error } = await supabase.functions.invoke("chat-with-arc", {
-        body: { messages: convo },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("chat-with-arc", {
+          body: { messages: convo },
+        }),
+        2500,
+        "Chat reply",
+      );
       if (error) throw error;
       const reply = (data as any)?.reply;
       if (!reply) throw new Error("empty");
@@ -93,7 +98,12 @@ export default function Chat() {
             <input
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && send()}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  send();
+                }
+              }}
               placeholder="Message Arc"
               className="flex-1 bg-transparent outline-none px-4 py-3.5 text-text placeholder:text-text-muted"
             />
