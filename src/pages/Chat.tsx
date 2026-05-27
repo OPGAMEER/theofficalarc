@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, X } from "lucide-react";
 import { useChatHistory, type ChatMessage } from "@/lib/arc-store";
 import { supabase } from "@/integrations/supabase/client";
+import { localChatReply } from "@/lib/local-chat";
 
 export default function Chat() {
   const navigate = useNavigate();
@@ -26,16 +27,17 @@ export default function Chat() {
     setStreaming(true);
 
     try {
+      const convo = next.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
       const { data, error } = await supabase.functions.invoke("chat-with-arc", {
-        body: {
-          messages: next.filter(m => m.content).map(m => ({ role: m.role, content: m.content })),
-        },
+        body: { messages: convo },
       });
       if (error) throw error;
-      const reply = (data as any)?.reply || "I'm here. Try asking again.";
+      const reply = (data as any)?.reply;
+      if (!reply) throw new Error("empty");
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } catch (e: any) {
-      setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: "I couldn't reach the AI right now. Try again in a moment." } : m));
+      const reply = localChatReply(next.filter(m => m.content).map(m => ({ role: m.role, content: m.content })));
+      setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } finally {
       setStreaming(false);
     }
