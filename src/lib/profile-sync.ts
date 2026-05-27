@@ -20,11 +20,13 @@ export type RemoteProfile = {
 export async function fetchProfile(userId: string): Promise<RemoteProfile | null> {
   try {
     const { data, error } = await withTimeout(
-      supabase
-        .from("profiles" as any)
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle(),
+      Promise.resolve(
+        supabase
+          .from("profiles" as any)
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle() as any,
+      ) as Promise<{ data: unknown; error: unknown }>,
       2500,
       "Profile fetch",
     );
@@ -42,9 +44,11 @@ export async function fetchProfile(userId: string): Promise<RemoteProfile | null
 export async function upsertProfile(userId: string, patch: Partial<RemoteProfile>) {
   try {
     const { error } = await withTimeout(
-      supabase
-        .from("profiles" as any)
-        .upsert({ id: userId, ...patch } as any, { onConflict: "id" }),
+      Promise.resolve(
+        supabase
+          .from("profiles" as any)
+          .upsert({ id: userId, ...patch } as any, { onConflict: "id" }) as any,
+      ) as Promise<{ error: unknown }>,
       2500,
       "Profile save",
     );
