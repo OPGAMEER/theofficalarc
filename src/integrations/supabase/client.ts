@@ -6,13 +6,13 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error("Missing Supabase client configuration");
+  console.warn("Missing Supabase client configuration; cloud calls will use local fallbacks where available.");
 }
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL || "https://example.supabase.co", SUPABASE_PUBLISHABLE_KEY || "local-fallback-key", {
   auth: {
     storage: localStorage,
     persistSession: true,
