@@ -76,7 +76,10 @@ export default function Workout() {
       runInBackground("workout-history", saveWorkoutToHistory(local));
       setOpen(false);
       toast.success(`Offline plan ready · ${genderLabel.toLowerCase()}${reason ? ` (${reason})` : ""}`);
+    };
+
     // 1. User-provided Groq key wins.
+
     if (hasGroqKey()) {
       try {
         const sys = `You are Arc, a fitness coach. Return ONLY a JSON object matching: {"title":string,"subtitle":string,"duration_min":number,"rpe":number,"volume_kg":number,"exercises":[{"name":string,"reps":string,"rest_sec":number,"cue":string}]}. 6-10 exercises tuned to the user.`;
