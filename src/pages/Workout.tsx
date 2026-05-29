@@ -97,8 +97,6 @@ export default function Workout() {
 
     try {
 
-
-    try {
       const { data, error } = await withTimeout(
         supabase.functions.invoke("generate-workout", {
           body: {
