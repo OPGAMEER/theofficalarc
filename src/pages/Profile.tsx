@@ -33,8 +33,10 @@ export default function Profile() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
-  const [saved, setSaved] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [groqKeyInput, setGroqKeyInput] = useState<string>(() => getGroqKey());
+  const [showGroqKey, setShowGroqKey] = useState(false);
+
   const [goalOpen, setGoalOpen] = useState(false);
 
   const xpInLevel = profile.xp % 100;
