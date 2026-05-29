@@ -58,10 +58,10 @@ export default function Chat() {
       const reply = localChatReply(convo as any);
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } finally {
-
-    } finally {
       setStreaming(false);
     }
+  };
+
   };
 
   return (
