@@ -59,3 +59,27 @@ export function localChatReply(messages: Msg[]): string {
 
   return pick(FALLBACKS);
 }
+
+// Prefers the user's Groq key when present; otherwise returns the canned reply.
+export async function chatReplyPreferGroq(messages: Msg[]): Promise<string> {
+  if (hasGroqKey()) {
+    try {
+      const reply = await groqChat(
+        [
+          {
+            role: "system",
+            content:
+              "You are Arc, a concise, friendly fitness, nutrition, focus, and lifestyle assistant. Keep answers under 120 words. Use short lines or bullet lists. No fluff.",
+          },
+          ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ],
+        { temperature: 0.7 },
+      );
+      if (reply?.trim()) return reply.trim();
+    } catch {
+      // fall through to local fallback
+    }
+  }
+  return localChatReply(messages);
+}
+
