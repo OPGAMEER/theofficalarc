@@ -62,7 +62,6 @@ export default function Chat() {
     }
   };
 
-  };
 
   return (
     <div className="min-h-screen w-full bg-background flex justify-center">
