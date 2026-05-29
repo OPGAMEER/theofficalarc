@@ -209,7 +209,6 @@ export default function Diet() {
 
     try {
 
-    try {
       let newPlan: DietPlan | undefined;
       let lastStatus: number | undefined;
 
