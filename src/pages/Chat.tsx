@@ -4,7 +4,9 @@ import { ArrowRight, X } from "lucide-react";
 import { useChatHistory, type ChatMessage } from "@/lib/arc-store";
 import { supabase } from "@/integrations/supabase/client";
 import { localChatReply } from "@/lib/local-chat";
-import { withTimeout } from "@/lib/resilient-actions";
+import { localChatReply, chatReplyPreferGroq } from "@/lib/local-chat";
+import { hasGroqKey } from "@/lib/groq";
+
 
 export default function Chat() {
   const navigate = useNavigate();
