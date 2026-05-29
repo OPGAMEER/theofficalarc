@@ -30,8 +30,19 @@ export default function Chat() {
     setInput("");
     setStreaming(true);
 
+    const convo = next.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
+
+    // 1. User-provided Groq key wins — direct browser → Groq call.
+    if (hasGroqKey()) {
+      try {
+        const reply = await chatReplyPreferGroq(convo as any);
+        setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
+        setStreaming(false);
+        return;
+      } catch {/* fall through */}
+    }
+
     try {
-      const convo = next.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
       const { data, error } = await withTimeout(
         supabase.functions.invoke("chat-with-arc", {
           body: { messages: convo },
@@ -44,8 +55,10 @@ export default function Chat() {
       if (!reply) throw new Error("empty");
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } catch (e: any) {
-      const reply = localChatReply(next.filter(m => m.content).map(m => ({ role: m.role, content: m.content })));
+      const reply = localChatReply(convo as any);
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
+    } finally {
+
     } finally {
       setStreaming(false);
     }
