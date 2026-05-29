@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toPng } from "html-to-image";
 import GenderSelect from "@/components/profile/GenderSelect";
 import AgeSlider from "@/components/profile/AgeSlider";
+import { getGroqKey, setGroqKey, clearGroqKey } from "@/lib/groq";
+
 
 const THEMES: { key: ThemeKey; label: string }[] = [
   { key: "LIGHT",  label: "LIGHT" },
