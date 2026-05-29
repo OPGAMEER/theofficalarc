@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
 import { generateLocalDiet } from "@/lib/local-generators";
 import { runInBackground, withTimeout } from "@/lib/resilient-actions";
+import { hasGroqKey, groqJson } from "@/lib/groq";
+
 
 const CUISINES: { id: string; label: string; emoji: string }[] = [
   { id: "auto",        label: "Arc decides",   emoji: "✨" },
