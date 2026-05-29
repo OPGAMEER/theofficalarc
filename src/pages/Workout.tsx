@@ -9,6 +9,8 @@ import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
 import { generateLocalWorkout } from "@/lib/local-generators";
 import { runInBackground, withTimeout } from "@/lib/resilient-actions";
+import { hasGroqKey, groqJson } from "@/lib/groq";
+
 
 const HERO_BY_GENDER: Record<string, string> = {
   MALE:   "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
@@ -76,7 +78,28 @@ export default function Workout() {
       toast.success(`Offline plan ready · ${genderLabel.toLowerCase()}${reason ? ` (${reason})` : ""}`);
     };
 
+    // 1. User-provided Groq key wins.
+
+    if (hasGroqKey()) {
+      try {
+        const sys = `You are Arc, a fitness coach. Return ONLY a JSON object matching: {"title":string,"subtitle":string,"duration_min":number,"rpe":number,"volume_kg":number,"exercises":[{"name":string,"reps":string,"rest_sec":number,"cue":string}]}. 6-10 exercises tuned to the user.`;
+        const usr = `Location: ${intake.location}. Equipment: ${intake.equipment || "bodyweight"}. Focus: ${intake.focus}. Duration: ${intake.duration_min} min. Gender: ${gender || "OTHER"}. Variety: ${intake.variety}. Avoid: ${(plan?.exercises?.map(e=>e.name) ?? []).join(", ") || "none"}.`;
+        const groqPlan = await groqJson<WorkoutPlan>(sys, usr, 12000);
+        if (groqPlan?.exercises?.length) {
+          setPlan(groqPlan);
+          runInBackground("workout-history", saveWorkoutToHistory(groqPlan));
+          setOpen(false);
+          setLoading(false);
+          toast.success(`Groq · ${genderLabel.toLowerCase()} plan ready.`);
+          return;
+        }
+      } catch (e) {
+        console.warn("[workout] groq direct failed, falling back", e);
+      }
+    }
+
     try {
+
       const { data, error } = await withTimeout(
         supabase.functions.invoke("generate-workout", {
           body: {

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
 import { generateLocalDiet } from "@/lib/local-generators";
 import { runInBackground, withTimeout } from "@/lib/resilient-actions";
+import { hasGroqKey, groqJson } from "@/lib/groq";
+
 
 const CUISINES: { id: string; label: string; emoji: string }[] = [
   { id: "auto",        label: "Arc decides",   emoji: "✨" },
@@ -187,7 +189,26 @@ export default function Diet() {
       toast.success(`Offline meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal${reason ? ` (${reason})` : ""}`);
     };
 
+    // 1. User-provided Groq key wins.
+    if (hasGroqKey()) {
+      try {
+        const sys = `You are Arc, a nutritionist. Return ONLY a JSON object matching: {"date":string,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"meals":[{"name":string,"time":string,"kcal":number,"items":string[],"prep_min":number,"cook_min":number,"recipe":string[]}]}. Total kcal MUST stay <= ${nutritionTarget.target}. 4 meals.`;
+        const usr = `Height: ${height}cm. Weight: ${weight}kg. Goal: ${goal}. Cuisine: ${cuisine}. Diet: ${diet}. Variety: ${variety}. Ingredients on hand: ${ingredients || "any"}. Constraints: ${[allergyRulesText, healthIssues.trim()].filter(Boolean).join("; ") || "none"}. Avoid: ${(plan?.meals?.map(m=>m.name) ?? []).join(", ") || "none"}.`;
+        const groqPlan = await groqJson<DietPlan>(sys, usr, 14000);
+        if (groqPlan?.meals?.length) {
+          setPlan(groqPlan);
+          runInBackground("diet-history", saveDietToHistory(groqPlan));
+          setLoading(false);
+          toast.success(`Groq · meal plan ${groqPlan.kcal}/${nutritionTarget.target} kcal.`);
+          return;
+        }
+      } catch (e) {
+        console.warn("[diet] groq direct failed, falling back", e);
+      }
+    }
+
     try {
+
       let newPlan: DietPlan | undefined;
       let lastStatus: number | undefined;
 
