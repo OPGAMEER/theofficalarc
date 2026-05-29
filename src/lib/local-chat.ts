@@ -1,5 +1,9 @@
 // On-device fallback for the Arc chat when the chat-with-arc Edge Function
 // is unavailable on a custom Supabase project. Keeps Arc helpful offline.
+// If the user has saved their own Groq API key in Settings, we try Groq
+// first and fall back to the canned replies below on any error.
+
+import { groqChat, hasGroqKey } from "@/lib/groq";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
