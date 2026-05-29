@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, X } from "lucide-react";
 import { useChatHistory, type ChatMessage } from "@/lib/arc-store";
 import { supabase } from "@/integrations/supabase/client";
-import { localChatReply } from "@/lib/local-chat";
 import { localChatReply, chatReplyPreferGroq } from "@/lib/local-chat";
 import { hasGroqKey } from "@/lib/groq";
+import { withTimeout } from "@/lib/resilient-actions";
+
 
 
 export default function Chat() {
