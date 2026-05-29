@@ -9,6 +9,8 @@ import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
 import { generateLocalWorkout } from "@/lib/local-generators";
 import { runInBackground, withTimeout } from "@/lib/resilient-actions";
+import { hasGroqKey, groqJson } from "@/lib/groq";
+
 
 const HERO_BY_GENDER: Record<string, string> = {
   MALE:   "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
