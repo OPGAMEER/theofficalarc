@@ -175,7 +175,7 @@ export default function Diet() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-    const useLocalFallback = (reason?: string) => {
+    const generateFallbackPlan = (reason?: string) => {
       const local = generateLocalDiet({
         diet,
         calorie_target: nutritionTarget.target,
@@ -206,7 +206,7 @@ export default function Diet() {
       }
     }
 
-    useLocalFallback();
+    generateFallbackPlan();
     setLoading(false);
   };
 

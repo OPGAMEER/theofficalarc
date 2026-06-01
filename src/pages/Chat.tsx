@@ -27,13 +27,15 @@ export default function Chat() {
     setInput("");
     setStreaming(true);
 
-    const convo = next.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
+    const convo = next
+      .filter((m) => m.content && (m.role === "user" || m.role === "assistant"))
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
     try {
-      const reply = await chatReplyPreferGroq(convo as any);
+      const reply = await chatReplyPreferGroq(convo);
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } catch {
-      const reply = localChatReply(convo as any);
+      const reply = localChatReply(convo);
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } finally {
       setStreaming(false);

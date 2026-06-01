@@ -32,7 +32,7 @@ function readUsage(): Usage {
 function bumpUsage() {
   const u = readUsage();
   u.count += 1;
-  try { localStorage.setItem(USAGE_KEY, JSON.stringify(u)); } catch {}
+  try { localStorage.setItem(USAGE_KEY, JSON.stringify(u)); } catch { return; }
 }
 
 export function remainingGroqRequests(): number {
