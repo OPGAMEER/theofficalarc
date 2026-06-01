@@ -62,7 +62,7 @@ export default function Workout() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-    const useLocalFallback = (reason?: string) => {
+    const generateFallbackPlan = (reason?: string) => {
       const local = generateLocalWorkout({
         location: intake.location,
         focus: intake.focus,
@@ -97,7 +97,7 @@ export default function Workout() {
       }
     }
 
-    useLocalFallback();
+    generateFallbackPlan();
     setLoading(false);
   };
 
