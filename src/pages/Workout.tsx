@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
 import { generateLocalWorkout } from "@/lib/local-generators";
-import { runInBackground, withTimeout } from "@/lib/resilient-actions";
+import { runInBackground } from "@/lib/resilient-actions";
 import { hasGroqKey, groqJson } from "@/lib/groq";
 
 
@@ -98,43 +98,8 @@ export default function Workout() {
       }
     }
 
-    try {
-
-      const { data, error } = await withTimeout(
-        supabase.functions.invoke("generate-workout", {
-          body: {
-            location: intake.location,
-            equipment: intake.equipment,
-            focus: intake.focus,
-            duration_min: intake.duration_min,
-            gender: gender || "OTHER",
-            variety: intake.variety,
-            exclude: plan?.exercises?.map((e) => e.name) ?? [],
-            client_seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
-          },
-        }),
-        2500,
-        "Workout generation",
-      );
-      if (error) {
-        const status = (error as any)?.context?.status;
-        if (status === 429) { toast.error("Rate limited — using on-device generator."); useLocalFallback("rate limited"); return; }
-        if (status === 402) { toast.error("AI credits exhausted — using on-device generator."); useLocalFallback("no credits"); return; }
-        useLocalFallback("offline");
-        return;
-      }
-      const newPlan = (data as any)?.plan as WorkoutPlan | undefined;
-      if (!newPlan?.exercises?.length) { useLocalFallback("empty response"); return; }
-      setPlan(newPlan);
-      runInBackground("workout-history", saveWorkoutToHistory(newPlan));
-      setOpen(false);
-      toast.success(`New ${genderLabel.toLowerCase()} plan from Arc.`);
-    } catch (e: any) {
-      console.error(e);
-      useLocalFallback("offline");
-    } finally {
-      setLoading(false);
-    }
+    useLocalFallback();
+    setLoading(false);
   };
 
   // Auto-refresh workout when gender or age changes (only if a plan exists)
