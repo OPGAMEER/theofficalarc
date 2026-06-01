@@ -356,12 +356,12 @@ export default function Workout() {
                   {([
                     ["fresh", "NEW EXERCISES"],
                     ["familiar", "CLASSIC"],
-                  ] as const).map(([val, label], i) => {
+                  ] as ["fresh" | "familiar", string][]).map(([val, label], i) => {
                     const active = intake.variety === val;
                     return (
                       <button
                         key={val}
-                        onClick={() => setIntake({ ...intake, variety: val as any })}
+                        onClick={() => setIntake({ ...intake, variety: val })}
                         className={`py-3 font-mono text-[10px] tracking-[0.2em] ${i === 0 ? "border-r border-text" : ""} ${active ? "bg-text text-text-inverse" : ""}`}
                       >
                         {label}

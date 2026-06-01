@@ -465,12 +465,12 @@ export default function Diet() {
           {([
             ["fresh", "NEW DISHES"],
             ["familiar", "FAMILIAR"],
-          ] as const).map(([val, label], i) => {
+          ] as ["fresh" | "familiar", string][]).map(([val, label], i) => {
             const active = variety === val;
             return (
               <button
                 key={val}
-                onClick={() => setVariety(val as any)}
+                onClick={() => setVariety(val)}
                 className={`py-2.5 mono-label-strong text-[11px] flex items-center justify-center gap-1.5 transition-colors ${
                   i === 0 ? "border-r border-border" : ""
                 } ${active ? "bg-[hsl(var(--accent))] text-[hsl(var(--background))]" : "text-text hover:bg-surface"}`}
