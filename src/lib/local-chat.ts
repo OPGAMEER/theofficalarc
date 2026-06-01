@@ -41,8 +41,8 @@ const STRESS_TIPS = [
 ];
 
 const FALLBACKS = [
-  "I'm offline right now, but I'm here. Try asking about workouts, meals, sleep, focus, or your daily routine.",
-  "The cloud brain is unreachable. I can still help — ask me for a quick workout, meal idea, or routine.",
+  "I can help with that. Give me your goal, time available, and equipment, and I’ll shape it into a clear plan.",
+  "Let’s keep it simple: tell me if you want training, meals, sleep, focus, or routine support and I’ll build the next step.",
 ];
 
 export function localChatReply(messages: Msg[]): string {
@@ -73,7 +73,7 @@ export async function chatReplyPreferGroq(messages: Msg[]): Promise<string> {
           },
           ...messages.map((m) => ({ role: m.role, content: m.content })),
         ],
-        { temperature: 0.7 },
+        { temperature: 0.7, timeoutMs: 7000 },
       );
       if (reply?.trim()) return reply.trim();
     } catch {

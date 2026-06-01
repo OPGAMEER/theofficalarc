@@ -2,10 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, X } from "lucide-react";
 import { useChatHistory, type ChatMessage } from "@/lib/arc-store";
-import { supabase } from "@/integrations/supabase/client";
 import { localChatReply, chatReplyPreferGroq } from "@/lib/local-chat";
-import { hasGroqKey } from "@/lib/groq";
-import { withTimeout } from "@/lib/resilient-actions";
 
 
 
@@ -30,32 +27,15 @@ export default function Chat() {
     setInput("");
     setStreaming(true);
 
-    const convo = next.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
-
-    // 1. User-provided Groq key wins — direct browser → Groq call.
-    if (hasGroqKey()) {
-      try {
-        const reply = await chatReplyPreferGroq(convo as any);
-        setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
-        setStreaming(false);
-        return;
-      } catch {/* fall through */}
-    }
+    const convo = next
+      .filter((m) => m.content && (m.role === "user" || m.role === "assistant"))
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
     try {
-      const { data, error } = await withTimeout(
-        supabase.functions.invoke("chat-with-arc", {
-          body: { messages: convo },
-        }),
-        2500,
-        "Chat reply",
-      );
-      if (error) throw error;
-      const reply = (data as any)?.reply;
-      if (!reply) throw new Error("empty");
+      const reply = await chatReplyPreferGroq(convo);
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
-    } catch (e: any) {
-      const reply = localChatReply(convo as any);
+    } catch {
+      const reply = localChatReply(convo);
       setMessages(prev => prev.map(m => m.id === placeholder.id ? { ...m, content: reply } : m));
     } finally {
       setStreaming(false);

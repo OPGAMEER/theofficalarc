@@ -4,11 +4,10 @@ import { Plus, ArrowRight, Loader2, ChefHat, ChevronDown, Sparkles, Repeat, Shie
 import { motion, AnimatePresence } from "framer-motion";
 import { useDietPlan, useProfile, type DietPlan } from "@/lib/arc-store";
 import { saveDietToHistory } from "@/lib/plan-history";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
 import { generateLocalDiet } from "@/lib/local-generators";
-import { runInBackground, withTimeout } from "@/lib/resilient-actions";
+import { runInBackground } from "@/lib/resilient-actions";
 import { hasGroqKey, groqJson } from "@/lib/groq";
 
 
@@ -176,7 +175,7 @@ export default function Diet() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-    const useLocalFallback = (reason?: string) => {
+    const generateFallbackPlan = (reason?: string) => {
       const local = generateLocalDiet({
         diet,
         calorie_target: nutritionTarget.target,
@@ -199,7 +198,7 @@ export default function Diet() {
           setPlan(groqPlan);
           runInBackground("diet-history", saveDietToHistory(groqPlan));
           setLoading(false);
-          toast.success(`Groq · meal plan ${groqPlan.kcal}/${nutritionTarget.target} kcal.`);
+          toast.success(`Meal plan ready · ${groqPlan.kcal}/${nutritionTarget.target} kcal.`);
           return;
         }
       } catch (e) {
@@ -207,71 +206,8 @@ export default function Diet() {
       }
     }
 
-    try {
-
-      let newPlan: DietPlan | undefined;
-      let lastStatus: number | undefined;
-
-      const MAX_ATTEMPTS = 3;
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-        const { data, error } = await withTimeout(
-          supabase.functions.invoke("generate-diet", {
-            body: {
-              height_cm: Number(height) || 178,
-              weight_kg: Number(weight) || 76,
-              goal,
-              cuisine,
-              diet,
-              calorie_target: nutritionTarget.target,
-              variety,
-              exclude: plan?.meals?.map((m) => m.name) ?? [],
-              ingredients: ingredients.trim().slice(0, 500),
-              health_issues: [allergyRulesText, healthIssues.trim()].filter(Boolean).join(". ").slice(0, 1000),
-            },
-          }),
-          2500,
-          "Diet generation",
-        );
-
-        if (!error) {
-          const candidate = (data as any)?.plan as DietPlan | undefined;
-          if (candidate?.kcal && Number(candidate.kcal) > nutritionTarget.target && attempt < MAX_ATTEMPTS - 1) {
-            console.warn(`[diet] plan over target (${candidate.kcal}/${nutritionTarget.target}), retrying…`);
-            toast.message("Recalibrating to fit your calorie cap…");
-            continue;
-          }
-          newPlan = candidate;
-          break;
-        }
-
-        lastStatus = (error as any)?.context?.status;
-        if (lastStatus !== 422 || attempt === MAX_ATTEMPTS - 1) {
-          if (lastStatus === 429) toast.error("Rate limited — using on-device generator.");
-          else if (lastStatus === 402) toast.error("AI credits exhausted — using on-device generator.");
-          else if (lastStatus === 422) toast.error("Plan missed target — using on-device generator.");
-          useLocalFallback("offline");
-          return;
-        }
-      }
-
-      if (!newPlan?.meals?.length) {
-        useLocalFallback("empty response");
-        return;
-      }
-
-      setPlan(newPlan);
-      runInBackground("diet-history", saveDietToHistory(newPlan));
-      if (Number(newPlan.kcal) > nutritionTarget.target) {
-        toast.warning(`Plan is ${Number(newPlan.kcal) - nutritionTarget.target} kcal over target. Tap regenerate to retry.`);
-      } else {
-        toast.success(`Fresh meals · ${newPlan.kcal}/${nutritionTarget.target} kcal.`);
-      }
-    } catch (e: any) {
-      console.error(e);
-      useLocalFallback("offline");
-    } finally {
-      setLoading(false);
-    }
+    generateFallbackPlan();
+    setLoading(false);
   };
 
   const p = plan;
@@ -529,12 +465,12 @@ export default function Diet() {
           {([
             ["fresh", "NEW DISHES"],
             ["familiar", "FAMILIAR"],
-          ] as const).map(([val, label], i) => {
+          ] as ["fresh" | "familiar", string][]).map(([val, label], i) => {
             const active = variety === val;
             return (
               <button
                 key={val}
-                onClick={() => setVariety(val as any)}
+                onClick={() => setVariety(val)}
                 className={`py-2.5 mono-label-strong text-[11px] flex items-center justify-center gap-1.5 transition-colors ${
                   i === 0 ? "border-r border-border" : ""
                 } ${active ? "bg-[hsl(var(--accent))] text-[hsl(var(--background))]" : "text-text hover:bg-surface"}`}
