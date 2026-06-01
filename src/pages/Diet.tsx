@@ -198,7 +198,7 @@ export default function Diet() {
           setPlan(groqPlan);
           runInBackground("diet-history", saveDietToHistory(groqPlan));
           setLoading(false);
-          toast.success(`Groq · meal plan ${groqPlan.kcal}/${nutritionTarget.target} kcal.`);
+          toast.success(`Meal plan ready · ${groqPlan.kcal}/${nutritionTarget.target} kcal.`);
           return;
         }
       } catch (e) {

@@ -89,7 +89,7 @@ export default function Workout() {
           runInBackground("workout-history", saveWorkoutToHistory(groqPlan));
           setOpen(false);
           setLoading(false);
-          toast.success(`Groq · ${genderLabel.toLowerCase()} plan ready.`);
+          toast.success(`${genderLabel.toLowerCase()} plan ready.`);
           return;
         }
       } catch (e) {
