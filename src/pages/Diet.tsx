@@ -4,7 +4,6 @@ import { Plus, ArrowRight, Loader2, ChefHat, ChevronDown, Sparkles, Repeat, Shie
 import { motion, AnimatePresence } from "framer-motion";
 import { useDietPlan, useProfile, type DietPlan } from "@/lib/arc-store";
 import { saveDietToHistory } from "@/lib/plan-history";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
 import { generateLocalDiet } from "@/lib/local-generators";

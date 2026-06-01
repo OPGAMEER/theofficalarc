@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Pause, Play, X, Zap, Loader2, Maximize2, ListOrdered, User, UserRound, Users, History as HistoryIcon } from "lucide-react";
 import { useWorkoutPlan, useProfile, type WorkoutPlan } from "@/lib/arc-store";
 import { saveWorkoutToHistory } from "@/lib/plan-history";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
