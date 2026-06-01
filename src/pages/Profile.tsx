@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toPng } from "html-to-image";
 import GenderSelect from "@/components/profile/GenderSelect";
 import AgeSlider from "@/components/profile/AgeSlider";
-import { getGroqKey, setGroqKey, clearGroqKey } from "@/lib/groq";
+
 
 
 const THEMES: { key: ThemeKey; label: string }[] = [
@@ -36,8 +36,8 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
-  const [groqKeyInput, setGroqKeyInput] = useState<string>(() => getGroqKey());
-  const [showGroqKey, setShowGroqKey] = useState(false);
+
+
 
 
   const xpInLevel = profile.xp % 100;
@@ -202,57 +202,8 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* AI · Groq API key (stored in browser only) */}
-      <div className="mt-10">
-        <div className="border-b border-text pb-2 flex justify-between items-center">
-          <span className="mono-label-strong">AI · GROQ API KEY</span>
-          <span className="mono-label">{getGroqKey() ? "ACTIVE" : "NOT SET"}</span>
-        </div>
-        <p className="text-text-muted text-xs mt-3 leading-relaxed">
-          Paste a Groq API key to power chat, workout, and meal generation directly from your browser. Stored locally only — never sent to Arc servers.
-        </p>
-        <div className="mt-3 flex gap-2">
-          <input
-            type={showGroqKey ? "text" : "password"}
-            value={groqKeyInput}
-            onChange={(e) => setGroqKeyInput(e.target.value)}
-            placeholder="gsk_..."
-            autoComplete="off"
-            spellCheck={false}
-            className="flex-1 bg-transparent border border-border outline-none focus:border-text px-3 py-2.5 text-text font-mono text-xs"
-          />
-          <button
-            type="button"
-            onClick={() => setShowGroqKey((v) => !v)}
-            className="border border-border px-3 mono-label-strong text-[10px] hover:border-text"
-          >
-            {showGroqKey ? "HIDE" : "SHOW"}
-          </button>
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setGroqKey(groqKeyInput);
-              toast.success(groqKeyInput.trim() ? "Groq key saved" : "Groq key cleared");
-            }}
-            className="border border-text bg-inverse text-text-inverse py-2.5 mono-label-strong text-[11px]"
-          >
-            SAVE KEY
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              clearGroqKey();
-              setGroqKeyInput("");
-              toast.success("Groq key removed");
-            }}
-            className="border border-border py-2.5 mono-label-strong text-[11px] hover:border-text"
-          >
-            CLEAR
-          </button>
-        </div>
-      </div>
+
+
 
       {/* Reset profile data — wipes back to defaults */}
       <div className="mt-10">
