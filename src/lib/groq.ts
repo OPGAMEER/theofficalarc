@@ -47,7 +47,7 @@ type Msg = { role: "system" | "user" | "assistant"; content: string };
 
 export async function groqChat(
   messages: Msg[],
-  opts: { model?: string; json?: boolean; temperature?: number; signal?: AbortSignal } = {},
+  opts: { model?: string; json?: boolean; temperature?: number; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<string> {
   if (remainingGroqRequests() <= 0) throw new Error("groq_daily_limit");
 
@@ -58,24 +58,31 @@ export async function groqChat(
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
-  const res = await fetch(ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${BUILTIN_KEY}`,
-    },
-    body: JSON.stringify(body),
-    signal: opts.signal,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`groq_${res.status}: ${text.slice(0, 200)}`);
+  const ctrl = opts.signal ? null : new AbortController();
+  const timeout = ctrl ? window.setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 8000) : undefined;
+
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${BUILTIN_KEY}`,
+      },
+      body: JSON.stringify(body),
+      signal: opts.signal ?? ctrl?.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`groq_${res.status}: ${text.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const reply = data?.choices?.[0]?.message?.content;
+    if (!reply) throw new Error("groq_empty");
+    bumpUsage();
+    return reply as string;
+  } finally {
+    if (timeout !== undefined) window.clearTimeout(timeout);
   }
-  const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content;
-  if (!reply) throw new Error("groq_empty");
-  bumpUsage();
-  return reply as string;
 }
 
 export async function groqJson<T = unknown>(
@@ -91,7 +98,7 @@ export async function groqJson<T = unknown>(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { json: true, signal: ctrl.signal, temperature: 0.8 },
+      { json: true, signal: ctrl.signal, temperature: 0.8, timeoutMs },
     );
     return JSON.parse(text) as T;
   } finally {
