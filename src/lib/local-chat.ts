@@ -3,7 +3,7 @@
 // If the user has saved their own Groq API key in Settings, we try Groq
 // first and fall back to the canned replies below on any error.
 
-import { groqChat, hasGroqKey } from "@/lib/groq";
+import { groqChat, hasGroqKey, checkGroqHealth } from "@/lib/groq";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -62,7 +62,7 @@ export function localChatReply(messages: Msg[]): string {
 
 // Prefers the user's Groq key when present; otherwise returns the canned reply.
 export async function chatReplyPreferGroq(messages: Msg[]): Promise<string> {
-  if (hasGroqKey()) {
+  if (hasGroqKey() && (await checkGroqHealth())) {
     try {
       const reply = await groqChat(
         [
