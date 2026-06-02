@@ -43,6 +43,49 @@ export function hasGroqKey(): boolean {
   return remainingGroqRequests() > 0;
 }
 
+// ----- Connection health check -----
+// Quietly verifies Groq is reachable AND the model we depend on is live.
+// Cached for 60s to avoid hammering the API before every generation.
+
+type HealthCache = { ok: boolean; ts: number };
+let healthCache: HealthCache | null = null;
+const HEALTH_TTL_MS = 60_000;
+
+export async function checkGroqHealth(opts: { force?: boolean; timeoutMs?: number } = {}): Promise<boolean> {
+  if (!opts.force && healthCache && Date.now() - healthCache.ts < HEALTH_TTL_MS) {
+    return healthCache.ok;
+  }
+  const ctrl = new AbortController();
+  const t = window.setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 4000);
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/models", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${BUILTIN_KEY}` },
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      healthCache = { ok: false, ts: Date.now() };
+      return false;
+    }
+    const data = await res.json().catch(() => null) as { data?: { id: string }[] } | null;
+    const ids = data?.data?.map((m) => m.id) ?? [];
+    const ok = ids.length > 0 && (ids.includes(DEFAULT_MODEL) || ids.some((id) => id.startsWith("llama-3.1")));
+    healthCache = { ok, ts: Date.now() };
+    return ok;
+  } catch {
+    healthCache = { ok: false, ts: Date.now() };
+    return false;
+  } finally {
+    window.clearTimeout(t);
+  }
+}
+
+// True only when we still have quota AND Groq is reachable.
+export async function isGroqReady(): Promise<boolean> {
+  if (!hasGroqKey()) return false;
+  return checkGroqHealth();
+}
+
 type Msg = { role: "system" | "user" | "assistant"; content: string };
 
 export async function groqChat(

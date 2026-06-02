@@ -8,7 +8,7 @@ import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
 import { generateLocalWorkout } from "@/lib/local-generators";
 import { runInBackground } from "@/lib/resilient-actions";
-import { hasGroqKey, groqJson } from "@/lib/groq";
+import { hasGroqKey, groqJson, checkGroqHealth } from "@/lib/groq";
 
 
 const HERO_BY_GENDER: Record<string, string> = {
@@ -77,9 +77,9 @@ export default function Workout() {
       toast.success(`Offline plan ready · ${genderLabel.toLowerCase()}${reason ? ` (${reason})` : ""}`);
     };
 
-    // 1. User-provided Groq key wins.
+    // 1. Verify Groq reachability + model availability before attempting.
 
-    if (hasGroqKey()) {
+    if (hasGroqKey() && (await checkGroqHealth())) {
       try {
         const sys = `You are Arc, a fitness coach. Return ONLY a JSON object matching: {"title":string,"subtitle":string,"duration_min":number,"rpe":number,"volume_kg":number,"exercises":[{"name":string,"reps":string,"rest_sec":number,"cue":string}]}. 6-10 exercises tuned to the user.`;
         const usr = `Location: ${intake.location}. Equipment: ${intake.equipment || "bodyweight"}. Focus: ${intake.focus}. Duration: ${intake.duration_min} min. Gender: ${gender || "OTHER"}. Variety: ${intake.variety}. Avoid: ${(plan?.exercises?.map(e=>e.name) ?? []).join(", ") || "none"}.`;
