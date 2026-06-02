@@ -30,13 +30,9 @@ export async function fetchProfile(userId: string): Promise<RemoteProfile | null
       2500,
       "Profile fetch",
     );
-    if (error) {
-      console.warn("[profile] fetch error", error);
-      return null;
-    }
+    if (error) return null;
     return (data as unknown) as RemoteProfile | null;
-  } catch (error) {
-    console.warn("[profile] fetch unavailable", error);
+  } catch {
     return null;
   }
 }
@@ -52,13 +48,9 @@ export async function upsertProfile(userId: string, patch: Partial<RemoteProfile
       2500,
       "Profile save",
     );
-    if (error) {
-      console.warn("[profile] upsert error", error);
-      return { ok: false as const, error };
-    }
+    if (error) return { ok: false as const, error };
     return { ok: true as const };
   } catch (error) {
-    console.warn("[profile] upsert unavailable", error);
     return { ok: false as const, error };
   }
 }
