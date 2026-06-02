@@ -27,55 +27,55 @@ async function currentUserId(): Promise<string | null> {
 
 // ---------- DIET ----------
 export async function saveDietToHistory(plan: DietPlan) {
-  const uid = await currentUserId();
-  if (uid) {
-    // dedupe against most recent remote entry
-    const { data: latest } = await supabase
-      .from("diet_history" as any)
-      .select("plan")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const fp = fingerprint(plan.meals?.map((m) => m.name));
-    if (latest && fingerprint(((latest as any).plan as DietPlan).meals?.map((m) => m.name)) === fp) return;
-    const { error } = await supabase.from("diet_history" as any).insert({ user_id: uid, plan: plan as any });
-    if (error) console.warn("[history] diet insert", error);
-    emit();
-    return;
-  }
-  // guest fallback
   const list = read<DietHistoryEntry>(DIET_KEY);
   const fp = fingerprint(plan.meals?.map((m) => m.name));
-  if (list[0] && fingerprint(list[0].plan.meals?.map((m) => m.name)) === fp) return;
-  list.unshift({ id: crypto.randomUUID(), ts: Date.now(), plan });
-  write(DIET_KEY, list);
-  emit();
+  if (!list[0] || fingerprint(list[0].plan.meals?.map((m) => m.name)) !== fp) {
+    list.unshift({ id: crypto.randomUUID(), ts: Date.now(), plan });
+    write(DIET_KEY, list);
+    emit();
+  }
+
+  const uid = await currentUserId();
+  if (uid) {
+    try {
+      const { data: latest } = await supabase
+        .from("diet_history" as any)
+        .select("plan")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest && fingerprint(((latest as any).plan as DietPlan).meals?.map((m) => m.name)) === fp) return;
+      await supabase.from("diet_history" as any).insert({ user_id: uid, plan: plan as any });
+    } catch {}
+    return;
+  }
 }
 
 export async function saveWorkoutToHistory(plan: WorkoutPlan) {
-  const uid = await currentUserId();
-  if (uid) {
-    const { data: latest } = await supabase
-      .from("workout_history" as any)
-      .select("plan")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const fp = fingerprint(plan.exercises?.map((e) => e.name));
-    if (latest && fingerprint(((latest as any).plan as WorkoutPlan).exercises?.map((e) => e.name)) === fp) return;
-    const { error } = await supabase.from("workout_history" as any).insert({ user_id: uid, plan: plan as any });
-    if (error) console.warn("[history] workout insert", error);
-    emit();
-    return;
-  }
   const list = read<WorkoutHistoryEntry>(WORKOUT_KEY);
   const fp = fingerprint(plan.exercises?.map((e) => e.name));
-  if (list[0] && fingerprint(list[0].plan.exercises?.map((e) => e.name)) === fp) return;
-  list.unshift({ id: crypto.randomUUID(), ts: Date.now(), plan });
-  write(WORKOUT_KEY, list);
-  emit();
+  if (!list[0] || fingerprint(list[0].plan.exercises?.map((e) => e.name)) !== fp) {
+    list.unshift({ id: crypto.randomUUID(), ts: Date.now(), plan });
+    write(WORKOUT_KEY, list);
+    emit();
+  }
+
+  const uid = await currentUserId();
+  if (uid) {
+    try {
+      const { data: latest } = await supabase
+        .from("workout_history" as any)
+        .select("plan")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest && fingerprint(((latest as any).plan as WorkoutPlan).exercises?.map((e) => e.name)) === fp) return;
+      await supabase.from("workout_history" as any).insert({ user_id: uid, plan: plan as any });
+    } catch {}
+    return;
+  }
 }
 
 export async function getDietHistory(): Promise<DietHistoryEntry[]> {
