@@ -19,5 +19,6 @@ export function withTimeout<T>(promise: Promise<T>, ms = GENERATION_TIMEOUT_MS, 
 }
 
 export function runInBackground(label: string, job: Promise<unknown>) {
-  job.catch((error) => console.warn(`[${label}] background action failed`, error));
+  void label;
+  job.catch(() => {});
 }
