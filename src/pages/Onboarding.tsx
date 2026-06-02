@@ -65,27 +65,28 @@ export default function Onboarding() {
 
   const back = () => { if (step > 0) setStep(step - 1); };
 
-  const [loopInfo, setLoopInfo] = useState<{ count: number; from: string; diag: any } | null>(null);
+  const [, setLoopInfo] = useState<{ count: number; from: string; diag: any } | null>(null);
   useEffect(() => {
     try {
       const count = Number(sessionStorage.getItem("arc_onboarding_redirects") || "0");
       const from = sessionStorage.getItem("arc_onboarding_last_from") || "";
       const diagRaw = sessionStorage.getItem("arc_onboarding_diag");
       const diag = diagRaw ? JSON.parse(diagRaw) : null;
-      console.log("[Onboarding] mount", { count, from, diag, userId: user?.id });
       if (count >= 2) setLoopInfo({ count, from, diag });
-    } catch (e) { console.warn("[Onboarding] diag read failed", e); }
+    } catch {}
   }, [user?.id]);
 
   const finish = async () => {
-    if (finishingRef.current) { console.log("[Onboarding] finish blocked (already running)"); return; }
+    if (finishingRef.current) return;
     finishingRef.current = true;
-    console.log("[Onboarding] finish start", { userId: user?.id, name, sex, age, goal, handle });
 
     try {
       setProfile({ ...profile, name: name.trim(), handle, sex, age: age ?? undefined, goal });
       if (user?.id) {
-        const res = await upsertProfile(user.id, {
+        try { localStorage.setItem(`arc_onboarded_${user.id}`, "1"); } catch {}
+      }
+      if (user?.id) {
+        void upsertProfile(user.id, {
           name: name.trim(),
           handle,
           sex: sex ?? null,
@@ -93,29 +94,22 @@ export default function Onboarding() {
           goal: goal ?? null,
           onboarded: true,
         });
-        console.log("[Onboarding] upsertProfile result", res);
-        if (!res.ok) {
-          toast.error("Couldn't save your profile", { description: "Check your connection and try again." });
-          return;
-        }
       }
       localStorage.removeItem("arc_workout");
       localStorage.removeItem("arc_diet");
-      if (user?.id) {
-        try { localStorage.setItem(`arc_onboarded_${user.id}`, "1"); } catch {}
-      }
       try {
         sessionStorage.removeItem("arc_onboarding_redirects");
         sessionStorage.removeItem("arc_onboarding_last_from");
       } catch {}
       window.dispatchEvent(new Event("arc:profile-changed"));
       await new Promise((r) => setTimeout(r, 50));
-      console.log("[Onboarding] finish navigate → /");
       toast.success("You're all set", { description: "Building your plan…" });
       navigate("/", { replace: true });
-    } catch (e) {
-      console.error("[Onboarding] finish error", e);
-      toast.error("Something went wrong", { description: "Check your connection and try again." });
+    } catch {
+      if (user?.id) {
+        try { localStorage.setItem(`arc_onboarded_${user.id}`, "1"); } catch {}
+      }
+      navigate("/", { replace: true });
     } finally {
       finishingRef.current = false;
     }
@@ -145,17 +139,6 @@ export default function Onboarding() {
             </div>
           ))}
         </div>
-
-        {loopInfo && (
-          <div className="mb-6 border border-[hsl(var(--destructive))] bg-[hsl(var(--destructive))]/10 p-3 text-xs">
-            <div className="mono-label-strong text-[hsl(var(--destructive))] mb-1">REDIRECT LOOP DETECTED</div>
-            <div className="text-text-muted">Bounced back to onboarding {loopInfo.count}× this session (last from {loopInfo.from || "?"}).</div>
-            <pre className="mt-2 whitespace-pre-wrap break-all opacity-70">{JSON.stringify(loopInfo.diag, null, 2)}</pre>
-            <button type="button" onClick={() => { try { sessionStorage.removeItem("arc_onboarding_redirects"); } catch {} setLoopInfo(null); }}
-              className="mt-2 underline">dismiss</button>
-          </div>
-        )}
-
 
         <div className="flex-1">
           <AnimatePresence mode="wait">

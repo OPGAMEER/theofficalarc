@@ -175,7 +175,8 @@ export default function Diet() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-    const generateFallbackPlan = (reason?: string) => {
+
+    const generateLocalPlan = () => {
       const local = generateLocalDiet({
         diet,
         calorie_target: nutritionTarget.target,
@@ -185,29 +186,26 @@ export default function Diet() {
       });
       setPlan(local);
       runInBackground("diet-history", saveDietToHistory(local));
-      toast.success(`Offline meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal${reason ? ` (${reason})` : ""}`);
+      toast.success(`Meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal.`);
     };
 
-    // 1. Verify Groq reachability + model availability before attempting.
-    if (hasGroqKey() && (await checkGroqHealth())) {
-      try {
+    try {
+      generateLocalPlan();
+
+      if (hasGroqKey() && (await checkGroqHealth())) {
         const sys = `You are Arc, a nutritionist. Return ONLY a JSON object matching: {"date":string,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"meals":[{"name":string,"time":string,"kcal":number,"items":string[],"prep_min":number,"cook_min":number,"recipe":string[]}]}. Total kcal MUST stay <= ${nutritionTarget.target}. 4 meals.`;
         const usr = `Height: ${height}cm. Weight: ${weight}kg. Goal: ${goal}. Cuisine: ${cuisine}. Diet: ${diet}. Variety: ${variety}. Ingredients on hand: ${ingredients || "any"}. Constraints: ${[allergyRulesText, healthIssues.trim()].filter(Boolean).join("; ") || "none"}. Avoid: ${(plan?.meals?.map(m=>m.name) ?? []).join(", ") || "none"}.`;
         const groqPlan = await groqJson<DietPlan>(sys, usr, 14000);
         if (groqPlan?.meals?.length) {
           setPlan(groqPlan);
           runInBackground("diet-history", saveDietToHistory(groqPlan));
-          setLoading(false);
-          toast.success(`Meal plan ready · ${groqPlan.kcal}/${nutritionTarget.target} kcal.`);
-          return;
         }
-      } catch (e) {
-        console.warn("[diet] groq direct failed, falling back", e);
       }
+    } catch {
+      // Local plan is already visible; keep generation silent on remote/storage failures.
+    } finally {
+      setLoading(false);
     }
-
-    generateFallbackPlan();
-    setLoading(false);
   };
 
   const p = plan;

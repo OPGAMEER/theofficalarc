@@ -349,8 +349,7 @@ function ShareModal({ open, onClose, name, handle, streak, level }:
       const blob = await res.blob();
       const file = new File([blob], `arc-streak-${streak}d.png`, { type: "image/png" });
       return { blob, file };
-    } catch (e) {
-      console.error("[share] render error", e);
+    } catch {
       toast.error("Couldn't render card. Try again.");
       return null;
     }
@@ -471,9 +470,7 @@ function ShareModal({ open, onClose, name, handle, streak, level }:
         cacheRenderedImage(out.file);
         setBusy(null);
         return;
-      } catch (e: any) {
-        if (e?.name !== "AbortError") console.warn(e);
-      }
+      } catch {}
     }
     // Fallback — save photo + copy caption
     cacheRenderedImage(out.file);
@@ -506,9 +503,7 @@ function ShareModal({ open, onClose, name, handle, streak, level }:
         cacheRenderedImage(out.file);
         setBusy(null);
         return;
-      } catch (e: any) {
-        if (e?.name !== "AbortError") console.warn(e);
-      }
+      } catch {}
     }
 
     cacheRenderedImage(out.file);

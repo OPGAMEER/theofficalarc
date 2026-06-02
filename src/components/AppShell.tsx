@@ -37,7 +37,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     const cacheKey = `arc_onboarded_${user.id}`;
     const hasLocalOnboardingCache = () => getCachedOnboarded(user.id);
     const cachedOnboarded = hasLocalOnboardingCache();
-    console.log("[AppShell] mount", { userId: user.id, pathname, cachedOnboarded });
     setOnboardedUserId(user.id);
     setOnboarded(cachedOnboarded);
     setOnboardedKnown(cachedOnboarded);
@@ -55,7 +54,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         const hasEssentials = !!(p && p.name && p.age && p.sex && p.goal);
         const flagged = !!p?.onboarded;
         const isOnboarded = !p ? cachedAfterFetch : (flagged || hasEssentials || cachedAfterFetch);
-        console.log("[AppShell] profile fetched", { profile: p, hasEssentials, flagged, cachedAfterFetch, isOnboarded });
         try {
           const diag = { ts: Date.now(), profile: p, hasEssentials, flagged, cachedAfterFetch, isOnboarded };
           sessionStorage.setItem("arc_onboarding_diag", JSON.stringify(diag));
@@ -64,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           try {
             const { upsertProfile } = await import("@/lib/profile-sync");
             await upsertProfile(user.id, { onboarded: true });
-          } catch (e) { console.warn("[AppShell] flag upsert failed", e); }
+          } catch {}
         }
         try {
           if (isOnboarded) localStorage.setItem(cacheKey, "1");
@@ -82,7 +80,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   if (!loading && !user && !isPublic) {
-    console.log("[AppShell] redirect → /landing (no user)", { pathname });
     return <Navigate to="/landing" replace />;
   }
 
@@ -90,7 +87,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!loading && user && !isPublic && !isOnboarding) {
     if (!onboardedKnown || onboardedUserId !== user.id) {
-      console.log("[AppShell] waiting for onboarding state", { userId: user.id, onboardedUserId, onboardedKnown, pathname });
       return null;
     }
     if (!effectiveOnboarded) {
@@ -98,14 +94,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         const n = Number(sessionStorage.getItem("arc_onboarding_redirects") || "0") + 1;
         sessionStorage.setItem("arc_onboarding_redirects", String(n));
         sessionStorage.setItem("arc_onboarding_last_from", pathname);
-        console.warn("[AppShell] redirect → /onboarding", { from: pathname, count: n });
       } catch {}
       return <Navigate to="/onboarding" replace />;
     }
   }
 
   if (!loading && user && isOnboarding && onboardedUserId === user.id && effectiveOnboarded) {
-    console.log("[AppShell] redirect → / (already onboarded)", { pathname, userId: user.id });
     return <Navigate to="/" replace />;
   }
 

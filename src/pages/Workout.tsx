@@ -62,7 +62,8 @@ export default function Workout() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-    const generateFallbackPlan = (reason?: string) => {
+
+    const generateLocalPlan = () => {
       const local = generateLocalWorkout({
         location: intake.location,
         focus: intake.focus,
@@ -74,31 +75,26 @@ export default function Workout() {
       setPlan(local);
       runInBackground("workout-history", saveWorkoutToHistory(local));
       setOpen(false);
-      toast.success(`Offline plan ready · ${genderLabel.toLowerCase()}${reason ? ` (${reason})` : ""}`);
+      toast.success(`${genderLabel.toLowerCase()} plan ready.`);
     };
 
-    // 1. Verify Groq reachability + model availability before attempting.
+    try {
+      generateLocalPlan();
 
-    if (hasGroqKey() && (await checkGroqHealth())) {
-      try {
+      if (hasGroqKey() && (await checkGroqHealth())) {
         const sys = `You are Arc, a fitness coach. Return ONLY a JSON object matching: {"title":string,"subtitle":string,"duration_min":number,"rpe":number,"volume_kg":number,"exercises":[{"name":string,"reps":string,"rest_sec":number,"cue":string}]}. 6-10 exercises tuned to the user.`;
         const usr = `Location: ${intake.location}. Equipment: ${intake.equipment || "bodyweight"}. Focus: ${intake.focus}. Duration: ${intake.duration_min} min. Gender: ${gender || "OTHER"}. Variety: ${intake.variety}. Avoid: ${(plan?.exercises?.map(e=>e.name) ?? []).join(", ") || "none"}.`;
         const groqPlan = await groqJson<WorkoutPlan>(sys, usr, 12000);
         if (groqPlan?.exercises?.length) {
           setPlan(groqPlan);
           runInBackground("workout-history", saveWorkoutToHistory(groqPlan));
-          setOpen(false);
-          setLoading(false);
-          toast.success(`${genderLabel.toLowerCase()} plan ready.`);
-          return;
         }
-      } catch (e) {
-        console.warn("[workout] groq direct failed, falling back", e);
       }
+    } catch {
+      // Local plan is already visible; keep generation silent on remote/storage failures.
+    } finally {
+      setLoading(false);
     }
-
-    generateFallbackPlan();
-    setLoading(false);
   };
 
   // Auto-refresh workout when gender or age changes (only if a plan exists)
