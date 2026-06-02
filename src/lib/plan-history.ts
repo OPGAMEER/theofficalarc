@@ -79,33 +79,43 @@ export async function saveWorkoutToHistory(plan: WorkoutPlan) {
 }
 
 export async function getDietHistory(): Promise<DietHistoryEntry[]> {
+  const local = read<DietHistoryEntry>(DIET_KEY);
   const uid = await currentUserId();
   if (uid) {
-    const { data, error } = await supabase
-      .from("diet_history" as any)
-      .select("id, plan, created_at")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(MAX);
-    if (error) { console.warn("[history] diet load", error); return []; }
-    return (data || []).map((r: any) => ({ id: r.id, ts: new Date(r.created_at).getTime(), plan: r.plan as DietPlan }));
+    try {
+      const { data, error } = await supabase
+        .from("diet_history" as any)
+        .select("id, plan, created_at")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(MAX);
+      if (error) return local;
+      return (data || []).map((r: any) => ({ id: r.id, ts: new Date(r.created_at).getTime(), plan: r.plan as DietPlan }));
+    } catch {
+      return local;
+    }
   }
-  return read<DietHistoryEntry>(DIET_KEY);
+  return local;
 }
 
 export async function getWorkoutHistory(): Promise<WorkoutHistoryEntry[]> {
+  const local = read<WorkoutHistoryEntry>(WORKOUT_KEY);
   const uid = await currentUserId();
   if (uid) {
-    const { data, error } = await supabase
-      .from("workout_history" as any)
-      .select("id, plan, created_at")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(MAX);
-    if (error) { console.warn("[history] workout load", error); return []; }
-    return (data || []).map((r: any) => ({ id: r.id, ts: new Date(r.created_at).getTime(), plan: r.plan as WorkoutPlan }));
+    try {
+      const { data, error } = await supabase
+        .from("workout_history" as any)
+        .select("id, plan, created_at")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(MAX);
+      if (error) return local;
+      return (data || []).map((r: any) => ({ id: r.id, ts: new Date(r.created_at).getTime(), plan: r.plan as WorkoutPlan }));
+    } catch {
+      return local;
+    }
   }
-  return read<WorkoutHistoryEntry>(WORKOUT_KEY);
+  return local;
 }
 
 export async function deleteDietEntry(id: string) {
