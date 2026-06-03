@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
 import { generateLocalDiet } from "@/lib/local-generators";
 import { runInBackground } from "@/lib/resilient-actions";
-import { hasGroqKey, groqJson, checkGroqHealth } from "@/lib/groq";
 
 
 const CUISINES: { id: string; label: string; emoji: string }[] = [
@@ -176,7 +175,7 @@ export default function Diet() {
     if (loading) return;
     setLoading(true);
 
-    const generateLocalPlan = () => {
+    try {
       const local = generateLocalDiet({
         diet,
         calorie_target: nutritionTarget.target,
@@ -187,22 +186,11 @@ export default function Diet() {
       setPlan(local);
       runInBackground("diet-history", saveDietToHistory(local));
       toast.success(`Meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal.`);
-    };
-
-    try {
-      generateLocalPlan();
-
-      if (hasGroqKey() && (await checkGroqHealth())) {
-        const sys = `You are Arc, a nutritionist. Return ONLY a JSON object matching: {"date":string,"kcal":number,"protein_g":number,"carbs_g":number,"fat_g":number,"meals":[{"name":string,"time":string,"kcal":number,"items":string[],"prep_min":number,"cook_min":number,"recipe":string[]}]}. Total kcal MUST stay <= ${nutritionTarget.target}. 4 meals.`;
-        const usr = `Height: ${height}cm. Weight: ${weight}kg. Goal: ${goal}. Cuisine: ${cuisine}. Diet: ${diet}. Variety: ${variety}. Ingredients on hand: ${ingredients || "any"}. Constraints: ${[allergyRulesText, healthIssues.trim()].filter(Boolean).join("; ") || "none"}. Avoid: ${(plan?.meals?.map(m=>m.name) ?? []).join(", ") || "none"}.`;
-        const groqPlan = await groqJson<DietPlan>(sys, usr, 14000);
-        if (groqPlan?.meals?.length) {
-          setPlan(groqPlan);
-          runInBackground("diet-history", saveDietToHistory(groqPlan));
-        }
-      }
     } catch {
-      // Local plan is already visible; keep generation silent on remote/storage failures.
+      const fallback = generateLocalDiet({ diet: "any", calorie_target: nutritionTarget.target, seed: Date.now() });
+      setPlan(fallback);
+      runInBackground("diet-history", saveDietToHistory(fallback));
+      toast.success("Meal plan ready.");
     } finally {
       setLoading(false);
     }
