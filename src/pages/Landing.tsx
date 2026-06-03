@@ -21,6 +21,11 @@ export default function Landing() {
 
   const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
 
+  const continueAsGuest = () => {
+    try { localStorage.setItem("arc_guest", "1"); } catch {}
+    navigate("/onboarding", { replace: true });
+  };
+
   return (
     <div className="theme-dark relative min-h-screen w-full bg-background overflow-hidden flex justify-center">
       <div className="relative w-full max-w-md min-h-screen overflow-hidden">
@@ -79,6 +84,14 @@ export default function Landing() {
             >
               <span className="font-mono text-[13px] tracking-[0.3em] font-semibold">SIGN IN / SIGN UP</span>
               <ArrowRight size={16} />
+            </button>
+
+            <button
+              onClick={continueAsGuest}
+              className="flex items-center justify-center gap-3 border border-white/30 text-white py-4 px-6 arc-tr active:opacity-80"
+            >
+              <span className="font-mono text-[12px] tracking-[0.3em] font-semibold">CONTINUE WITHOUT SIGN IN</span>
+              <ArrowRight size={14} />
             </button>
 
             <p className="mono-label text-[#A1A1AA] text-center pt-3">
