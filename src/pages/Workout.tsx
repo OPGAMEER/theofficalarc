@@ -8,7 +8,6 @@ import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
 import { generateLocalWorkout } from "@/lib/local-generators";
 import { runInBackground } from "@/lib/resilient-actions";
-import { hasGroqKey, groqJson, checkGroqHealth } from "@/lib/groq";
 
 
 const HERO_BY_GENDER: Record<string, string> = {
@@ -63,7 +62,7 @@ export default function Workout() {
     if (loading) return;
     setLoading(true);
 
-    const generateLocalPlan = () => {
+    try {
       const local = generateLocalWorkout({
         location: intake.location,
         focus: intake.focus,
@@ -76,22 +75,12 @@ export default function Workout() {
       runInBackground("workout-history", saveWorkoutToHistory(local));
       setOpen(false);
       toast.success(`${genderLabel.toLowerCase()} plan ready.`);
-    };
-
-    try {
-      generateLocalPlan();
-
-      if (hasGroqKey() && (await checkGroqHealth())) {
-        const sys = `You are Arc, a fitness coach. Return ONLY a JSON object matching: {"title":string,"subtitle":string,"duration_min":number,"rpe":number,"volume_kg":number,"exercises":[{"name":string,"reps":string,"rest_sec":number,"cue":string}]}. 6-10 exercises tuned to the user.`;
-        const usr = `Location: ${intake.location}. Equipment: ${intake.equipment || "bodyweight"}. Focus: ${intake.focus}. Duration: ${intake.duration_min} min. Gender: ${gender || "OTHER"}. Variety: ${intake.variety}. Avoid: ${(plan?.exercises?.map(e=>e.name) ?? []).join(", ") || "none"}.`;
-        const groqPlan = await groqJson<WorkoutPlan>(sys, usr, 12000);
-        if (groqPlan?.exercises?.length) {
-          setPlan(groqPlan);
-          runInBackground("workout-history", saveWorkoutToHistory(groqPlan));
-        }
-      }
     } catch {
-      // Local plan is already visible; keep generation silent on remote/storage failures.
+      const fallback = generateLocalWorkout({ location: intake.location, focus: "FULL BODY", duration_min: intake.duration_min, gender: "OTHER", seed: Date.now() });
+      setPlan(fallback);
+      runInBackground("workout-history", saveWorkoutToHistory(fallback));
+      setOpen(false);
+      toast.success("Workout plan ready.");
     } finally {
       setLoading(false);
     }
