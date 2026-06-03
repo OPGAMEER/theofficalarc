@@ -27,6 +27,10 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { profile, setProfile } = useProfile();
+  const isGuest = (() => {
+    try { return typeof window !== "undefined" && localStorage.getItem("arc_guest") === "1"; }
+    catch { return false; }
+  })();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState<string>("");
@@ -44,8 +48,8 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) navigate("/landing", { replace: true });
-  }, [user, loading, navigate]);
+    if (!user && !isGuest) navigate("/landing", { replace: true });
+  }, [user, loading, isGuest, navigate]);
 
   const steps = useMemo(() => ["name", "gender", "age", "goal", "review"] as const, []);
   const total = steps.length;
@@ -84,6 +88,8 @@ export default function Onboarding() {
       setProfile({ ...profile, name: name.trim(), handle, sex, age: age ?? undefined, goal });
       if (user?.id) {
         try { localStorage.setItem(`arc_onboarded_${user.id}`, "1"); } catch {}
+      } else {
+        try { localStorage.setItem("arc_guest", "1"); localStorage.setItem("arc_guest_onboarded", "1"); } catch {}
       }
       if (user?.id) {
         void upsertProfile(user.id, {
