@@ -6,8 +6,8 @@ import { useDietPlan, useProfile, type DietPlan } from "@/lib/arc-store";
 import { saveDietToHistory } from "@/lib/plan-history";
 import { toast } from "sonner";
 import { foodEmoji } from "@/lib/food-emoji";
-import { generateLocalDiet } from "@/lib/local-generators";
 import { runInBackground } from "@/lib/resilient-actions";
+import { createMealPlan } from "@/lib/arc-engine";
 
 
 const CUISINES: { id: string; label: string; emoji: string }[] = [
@@ -174,26 +174,15 @@ export default function Diet() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-
-    try {
-      const local = generateLocalDiet({
-        diet,
-        calorie_target: nutritionTarget.target,
-        exclude: plan?.meals?.map((m) => m.name) ?? [],
-        health_issues: [allergyRulesText, healthIssues.trim()].filter(Boolean).join(". "),
-        seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
-      });
-      setPlan(local);
-      runInBackground("diet-history", saveDietToHistory(local));
-      toast.success(`Meal plan ready · ${local.kcal}/${nutritionTarget.target} kcal.`);
-    } catch {
-      const fallback = generateLocalDiet({ diet: "any", calorie_target: nutritionTarget.target, seed: Date.now() });
-      setPlan(fallback);
-      runInBackground("diet-history", saveDietToHistory(fallback));
-      toast.success("Meal plan ready.");
-    } finally {
-      setLoading(false);
-    }
+    const nextPlan = createMealPlan({
+      diet,
+      calorie_target: nutritionTarget.target,
+      seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
+    });
+    setPlan(nextPlan);
+    runInBackground("diet-history", saveDietToHistory(nextPlan));
+    toast.success(`Meal plan ready · ${nextPlan.kcal}/${nutritionTarget.target} kcal.`);
+    setLoading(false);
   };
 
   const p = plan;

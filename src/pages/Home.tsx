@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, Flame, Footprints, Play, Pause, RotateCcw } from "lucide-react";
+import { ArrowUpRight, Flame, Footprints, Play, Pause, RotateCcw, MessageCircle, UtensilsCrossed, Dumbbell } from "lucide-react";
 import { toast } from "sonner";
 import { useProfile } from "@/lib/arc-store";
 import { pedometer } from "@/lib/pedometer";
@@ -121,6 +121,29 @@ export default function Home() {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-3">
+        {[
+          { label: "AI CHATBOT", sub: "Ask Arc now", to: "/chat", Icon: MessageCircle },
+          { label: "MEAL GENERATOR", sub: "Create today's meals", to: "/diet", Icon: UtensilsCrossed },
+          { label: "WORKOUT GENERATOR", sub: "Build today's training", to: "/workout", Icon: Dumbbell },
+        ].map(({ label, sub, to, Icon }) => (
+          <button
+            key={to}
+            onClick={() => navigate(to)}
+            className="flex items-center justify-between border border-text bg-surface px-5 py-4 text-left active:opacity-85"
+          >
+            <span className="flex items-center gap-3">
+              <Icon size={18} className="text-[hsl(var(--accent))]" />
+              <span>
+                <span className="block mono-label-strong">{label}</span>
+                <span className="block text-sm text-text-muted mt-1">{sub}</span>
+              </span>
+            </span>
+            <ArrowUpRight size={16} />
+          </button>
+        ))}
       </div>
 
       {/* Streak hero card */}

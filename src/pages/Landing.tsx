@@ -22,8 +22,11 @@ export default function Landing() {
   const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).toUpperCase();
 
   const continueAsGuest = () => {
-    try { localStorage.setItem("arc_guest", "1"); } catch {}
-    navigate("/onboarding", { replace: true });
+    try {
+      localStorage.setItem("arc_guest", "1");
+      localStorage.setItem("arc_guest_onboarded", "1");
+    } catch {}
+    navigate("/", { replace: true });
   };
 
   return (
