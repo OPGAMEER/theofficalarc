@@ -1,5 +1,6 @@
-type Msg = { role: "user" | "assistant"; content: string };
 import { createCoachReply } from "@/lib/arc-engine";
+
+type Msg = { role: "user" | "assistant"; content: string };
 
 export function localChatReply(messages: Msg[]): string {
   return createCoachReply(messages);
