@@ -6,8 +6,8 @@ import { saveWorkoutToHistory } from "@/lib/plan-history";
 import { toast } from "sonner";
 import { exerciseMedia } from "@/lib/exercise-media";
 import { exerciseSteps } from "@/lib/exercise-steps";
-import { generateLocalWorkout } from "@/lib/local-generators";
 import { runInBackground } from "@/lib/resilient-actions";
+import { createWorkoutPlan } from "@/lib/arc-engine";
 
 
 const HERO_BY_GENDER: Record<string, string> = {
@@ -61,29 +61,18 @@ export default function Workout() {
   const generate = async () => {
     if (loading) return;
     setLoading(true);
-
-    try {
-      const local = generateLocalWorkout({
-        location: intake.location,
-        focus: intake.focus,
-        duration_min: intake.duration_min,
-        gender: gender || "OTHER",
-        exclude: plan?.exercises?.map((e) => e.name) ?? [],
-        seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
-      });
-      setPlan(local);
-      runInBackground("workout-history", saveWorkoutToHistory(local));
-      setOpen(false);
-      toast.success(`${genderLabel.toLowerCase()} plan ready.`);
-    } catch {
-      const fallback = generateLocalWorkout({ location: intake.location, focus: "FULL BODY", duration_min: intake.duration_min, gender: "OTHER", seed: Date.now() });
-      setPlan(fallback);
-      runInBackground("workout-history", saveWorkoutToHistory(fallback));
-      setOpen(false);
-      toast.success("Workout plan ready.");
-    } finally {
-      setLoading(false);
-    }
+    const nextPlan = createWorkoutPlan({
+      location: intake.location,
+      focus: intake.focus,
+      duration_min: intake.duration_min,
+      gender: gender || "OTHER",
+      seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
+    });
+    setPlan(nextPlan);
+    runInBackground("workout-history", saveWorkoutToHistory(nextPlan));
+    setOpen(false);
+    toast.success(`${genderLabel.toLowerCase()} plan ready.`);
+    setLoading(false);
   };
 
   // Auto-refresh workout when gender or age changes (only if a plan exists)
