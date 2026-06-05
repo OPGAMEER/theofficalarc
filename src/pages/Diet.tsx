@@ -177,6 +177,8 @@ export default function Diet() {
     const nextPlan = createMealPlan({
       diet,
       calorie_target: nutritionTarget.target,
+      ingredients,
+      restrictions: [healthIssues, allergyRulesText].filter(Boolean).join("; "),
       seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
     });
     setPlan(nextPlan);
