@@ -257,7 +257,7 @@ function normalizeFood(item: string) {
 function parseFoods(text = "") {
   const lower = text.toLowerCase();
   const found = KNOWN_FOODS.filter((food) => lower.includes(food.toLowerCase()));
-  const listed = text.split(/[\n,;]+/).map(normalizeFood).filter((x) => x.length > 1 && x.length < 36);
+  const listed = /[,;\n]/.test(text) ? text.split(/[\n,;]+/).map(normalizeFood).filter((x) => x.length > 1 && x.length < 36) : [];
   return Array.from(new Set([...found, ...listed].map(normalizeFood))).slice(0, 10);
 }
 
@@ -343,19 +343,23 @@ export function createMealPlan(opts: { diet: DietChoice; calorie_target: number;
 export function createCoachReply(messages: Pick<ChatMessage, "role" | "content">[]): string {
   const last = [...messages].reverse().find((m) => m.role === "user")?.content.toLowerCase() ?? "";
   if (/meal|food|diet|eat|protein|calorie|breakfast|lunch|dinner/.test(last)) {
-    return "Here is the move: build every meal around protein first, then add one carb and one color.\n\nFast plate:\n• Protein: chicken, eggs, tofu, fish, Greek yogurt\n• Carb: rice, oats, potato, wrap, fruit\n• Color: greens, peppers, berries, cucumber\n\nIf you want, tell me your goal and foods you have and I’ll make it tighter.";
+    const foods = parseFoods(last).filter((item) => !hasAvoidedFood([item], avoidTerms(last)));
+    if (foods.length) return normalReply(`Yes — I’ll keep it to what you have: ${foods.join(", ")}. Make the main plate with ${foods.slice(0, 3).join(" + ")}, keep portions controlled, and avoid anything you listed as an allergy. If protein is low, use the highest-protein item first.`);
+    return normalReply("Sure — for meals, keep it simple: protein first, then one carb, then fruit or vegetables. Tell me the exact foods you have and any allergy, and I’ll keep the answer only to those foods.");
   }
   if (/workout|gym|train|exercise|push|pull|legs|cardio|muscle/.test(last)) {
-    return "Do this today:\n\n• Warm-up: 5 minutes easy movement\n• Squat or lunge: 4 sets\n• Push: 4 sets\n• Pull: 4 sets\n• Core: 3 sets\n• Finish: 8 minutes brisk walk\n\nKeep 1–2 reps in reserve. Clean form beats heavy ego reps.";
+    const location = /home/.test(last) ? "home" : /gym/.test(last) ? "gym" : "your selected place";
+    const equipment = equipmentKey(last)?.toLowerCase() ?? "available equipment";
+    return normalReply(`Yes — I’ll keep the workout to ${location} only and use ${equipment} only. Start with 5 minutes warm-up, then do 4–6 exercises for your focus, 3–4 sets each, resting 60–90 seconds. No random gym machines if you picked home.`);
   }
   if (/routine|schedule|morning|habit|plan/.test(last)) {
-    return "Simple routine:\n\n1. Drink water immediately\n2. 10 minutes sunlight or walking\n3. Write the top 3 tasks\n4. Train before scrolling\n5. Protein at the first meal\n\nMake it boring enough that you can repeat it.";
+    return normalReply("A simple routine: drink water, get 10 minutes of movement, write your top 3 tasks, train before scrolling, and eat protein at your first meal. Keep it repeatable.");
   }
   if (/sleep|tired|energy|rest/.test(last)) {
-    return "Tonight: fixed bedtime, no caffeine late, dim lights for 45 minutes, and keep the room cool. If energy is low tomorrow, train lighter but still show up.";
+    return normalReply("Tonight: fixed bedtime, no late caffeine, dim lights for 45 minutes, and keep the room cool. If you’re still tired tomorrow, train lighter but still show up.");
   }
   if (/hi|hello|hey|yo/.test(last)) {
-    return "I’m here. Ask me for a workout, meal plan, routine, calories, motivation, or a quick fix for today.";
+    return normalReply("Hey, I’m here. Ask me for a workout, meal plan, calories, routine, or a quick fix for today.");
   }
-  return "I’ve got you. Send me your goal, time available, equipment, and any food limits. I’ll turn it into a clear next step.";
+  return normalReply("I’ve got you. Send me your goal, time available, equipment, foods you have, and any allergy. I’ll keep it clear and limited to what you give me.");
 }
