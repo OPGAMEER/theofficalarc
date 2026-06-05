@@ -229,14 +229,86 @@ const MEALS = {
 
 type MealRow = readonly [string, readonly string[], number, readonly string[]];
 
+const KNOWN_FOODS = [
+  "chicken breast", "greek yogurt", "turkey slices", "turkey mince", "sweet potato", "black beans", "rice cakes",
+  "eggs", "oats", "berries", "yogurt", "toast", "avocado", "fruit", "banana", "tofu", "spinach", "tomato",
+  "potato", "chicken", "rice", "broccoli", "olive oil", "salmon", "green beans", "lemon", "chickpeas", "quinoa",
+  "cucumber", "feta", "edamame", "greens", "beef", "peppers", "wrap", "salad", "pasta", "cod", "asparagus",
+  "lentils", "coconut milk", "corn", "salsa", "noodles", "vegetables", "ginger", "protein shake", "apple", "honey",
+  "cottage cheese", "pineapple", "hummus", "carrots", "pita", "cheese", "tuna", "bread", "milk", "peanut butter",
+];
+
+const ALLERGY_GROUPS: { trigger: RegExp; avoid: string[] }[] = [
+  { trigger: /lactose|dairy|milk|cheese|yogurt|whey|butter|cream/i, avoid: ["milk", "cheese", "yogurt", "Greek yogurt", "cottage cheese", "feta", "butter", "cream", "whey"] },
+  { trigger: /gluten|celiac|wheat|bread|pasta|toast|wrap|pita/i, avoid: ["wheat", "bread", "pasta", "toast", "wrap", "pita", "noodles"] },
+  { trigger: /nut|peanut|almond|cashew|walnut|pistachio|hazelnut/i, avoid: ["nuts", "peanut", "peanut butter", "almond", "cashew", "walnut", "pistachio", "hazelnut"] },
+  { trigger: /shellfish|shrimp|prawn|crab|lobster|oyster|mussel|clam|scallop/i, avoid: ["shrimp", "prawns", "crab", "lobster", "oysters", "mussels", "clams", "scallops"] },
+  { trigger: /egg|eggs|mayonnaise/i, avoid: ["egg", "eggs", "mayonnaise"] },
+  { trigger: /soy|tofu|tempeh|edamame|soy sauce/i, avoid: ["soy", "tofu", "tempeh", "edamame", "soy sauce"] },
+  { trigger: /fish|salmon|tuna|cod|anchov/i, avoid: ["fish", "salmon", "tuna", "cod", "anchovies"] },
+  { trigger: /pork|ham|bacon|prosciutto|lard|halal|kosher/i, avoid: ["pork", "ham", "bacon", "prosciutto", "lard"] },
+  { trigger: /sugar|diabetic/i, avoid: ["honey", "sugar", "syrup"] },
+];
+
+function normalizeFood(item: string) {
+  return item.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function parseFoods(text = "") {
+  const lower = text.toLowerCase();
+  const found = KNOWN_FOODS.filter((food) => lower.includes(food.toLowerCase()));
+  const listed = text.split(/[\n,;]+/).map(normalizeFood).filter((x) => x.length > 1 && x.length < 36);
+  return Array.from(new Set([...found, ...listed].map(normalizeFood))).slice(0, 10);
+}
+
+function avoidTerms(text = "") {
+  const avoid = new Set<string>();
+  ALLERGY_GROUPS.forEach((group) => {
+    if (group.trigger.test(text)) group.avoid.forEach((item) => avoid.add(normalizeFood(item)));
+  });
+  return avoid;
+}
+
+function hasAvoidedFood(items: readonly string[], avoid: Set<string>) {
+  return items.some((item) => {
+    const n = normalizeFood(item);
+    return Array.from(avoid).some((bad) => n.includes(bad) || bad.includes(n));
+  });
+}
+
+function customMeal(slot: string, time: string, foods: string[], kcal: number) {
+  const primary = foods[0] ?? "rice";
+  const title = `${primary.replace(/\b\w/g, (c) => c.toUpperCase())} ${slot}`;
+  return {
+    name: title,
+    time,
+    kcal,
+    items: foods.length ? foods : [primary],
+    prep_min: slot === "Snack" ? 2 : 5,
+    cook_min: slot === "Snack" ? 0 : 12,
+    recipe: slot === "Snack"
+      ? [`Use only: ${(foods.length ? foods : [primary]).join(", ")}`, "Keep it simple and portion to your calories"]
+      : [`Prepare only these items: ${(foods.length ? foods : [primary]).join(", ")}`, "Cook or assemble simply", "Season with safe basics only"],
+  };
+}
+
 function chooseMeal(slot: keyof typeof MEALS, diet: DietChoice, seed: number): MealRow {
   const key = diet === "veg" || diet === "nonveg" ? diet : "any";
   return rotate([...MEALS[slot][key]], seed)[0] as MealRow;
 }
 
-export function createMealPlan(opts: { diet: DietChoice; calorie_target: number; seed?: number }): DietPlan {
+export function createMealPlan(opts: { diet: DietChoice; calorie_target: number; ingredients?: string; restrictions?: string; seed?: number }): DietPlan {
   const target = safeNumber(opts.calorie_target, 2200, 1300, 4200);
   const seed = opts.seed ?? Date.now();
+  const avoid = avoidTerms(opts.restrictions);
+  const availableFoods = parseFoods(opts.ingredients).filter((item) => !hasAvoidedFood([item], avoid));
+  if (availableFoods.length > 0) {
+    const calories = [0.24, 0.34, 0.12, 0.3].map((share) => Math.max(180, Math.round((target * share) / 10) * 10));
+    const slots = [["Breakfast", "08:00"], ["Lunch", "13:00"], ["Snack", "16:30"], ["Dinner", "19:30"]] as const;
+    const meals = slots.map(([slot, time], index) => customMeal(slot, time, rotate(availableFoods, seed + index).slice(0, Math.min(4, availableFoods.length)), calories[index]));
+    const total = meals.reduce((sum, meal) => sum + meal.kcal, 0);
+    return { date: todayISO(), kcal: total, protein_g: Math.round((total * 0.3) / 4), carbs_g: Math.round((total * 0.42) / 4), fat_g: Math.round((total * 0.28) / 9), meals };
+  }
   const rows = [
     ["Breakfast", "08:00", chooseMeal("breakfast", opts.diet, seed + 1)],
     ["Lunch", "13:00", chooseMeal("lunch", opts.diet, seed + 2)],
@@ -245,7 +317,9 @@ export function createMealPlan(opts: { diet: DietChoice; calorie_target: number;
   ] as const;
   const rawTotal = rows.reduce((sum, row) => sum + row[2][2], 0);
   const scale = target / rawTotal;
-  const meals = rows.map(([slot, time, row]) => ({
+  const meals = rows.map(([slot, time, row]) => hasAvoidedFood(row[1], avoid)
+    ? customMeal(slot, time, ["rice", "greens", "olive oil"].filter((item) => !hasAvoidedFood([item], avoid)), Math.max(180, Math.round((row[2] * scale) / 10) * 10))
+    : ({
     name: row[0],
     time,
     kcal: Math.max(180, Math.round((row[2] * scale) / 10) * 10),
