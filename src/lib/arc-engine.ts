@@ -2,6 +2,10 @@ import type { ChatMessage, DietPlan, WorkoutPlan } from "@/lib/arc-store";
 
 type DietChoice = "any" | "veg" | "nonveg";
 
+const REPLY_LIMIT = 520;
+
+const normalReply = (text: string) => text.length <= REPLY_LIMIT ? text : `${text.slice(0, REPLY_LIMIT - 1).trim()}…`;
+
 const todayISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -35,6 +39,65 @@ const WORKOUTS = {
   },
 } as const;
 
+const EQUIPMENT_WORKOUTS = {
+  HOME: {
+    DUMBBELL: {
+      PUSH: ["Dumbbell Floor Press", "Dumbbell Shoulder Press", "Dumbbell Push Press", "Dumbbell Triceps Extension"],
+      PULL: ["One-Arm Dumbbell Row", "Dumbbell Reverse Fly", "Dumbbell Pullover", "Dumbbell Hammer Curl"],
+      LOWER: ["Goblet Squat", "Dumbbell Romanian Deadlift", "Dumbbell Reverse Lunge", "Dumbbell Glute Bridge"],
+      CORE: ["Dumbbell Dead Bug", "Dumbbell Russian Twist", "Dumbbell Side Bend", "Weighted Plank Pull-Through"],
+      ATHLETIC: ["Dumbbell Thruster", "Dumbbell Clean", "Dumbbell Snatch", "Dumbbell Farmer March"],
+    },
+    BAND: {
+      PUSH: ["Band Chest Press", "Band Shoulder Press", "Band Triceps Pressdown", "Band Push-Up"],
+      PULL: ["Band Row", "Band Lat Pulldown", "Band Face Pull", "Band Curl"],
+      LOWER: ["Band Squat", "Band Romanian Deadlift", "Band Lateral Walk", "Band Glute Bridge"],
+      CORE: ["Band Pallof Press", "Band Woodchopper", "Band Dead Bug", "Band Plank Row"],
+      ATHLETIC: ["Band Sprint Drive", "Band Squat to Press", "Band High Pull", "Band Fast Row"],
+    },
+    KETTLEBELL: {
+      PUSH: ["Kettlebell Floor Press", "Kettlebell Strict Press", "Kettlebell Push Press", "Kettlebell Halo"],
+      PULL: ["Kettlebell Row", "Kettlebell High Pull", "Kettlebell Curl", "Kettlebell Pullover"],
+      LOWER: ["Kettlebell Goblet Squat", "Kettlebell Swing", "Kettlebell Romanian Deadlift", "Kettlebell Reverse Lunge"],
+      CORE: ["Kettlebell Plank Drag", "Kettlebell Russian Twist", "Kettlebell Windmill", "Kettlebell Suitcase Carry"],
+      ATHLETIC: ["Kettlebell Swing", "Kettlebell Clean", "Kettlebell Snatch", "Kettlebell Thruster"],
+    },
+  },
+  GYM: {
+    DUMBBELL: {
+      PUSH: ["Dumbbell Bench Press", "Incline Dumbbell Press", "Dumbbell Shoulder Press", "Dumbbell Lateral Raise"],
+      PULL: ["Chest-Supported Dumbbell Row", "One-Arm Dumbbell Row", "Dumbbell Rear Delt Fly", "Dumbbell Hammer Curl"],
+      LOWER: ["Dumbbell Bulgarian Split Squat", "Dumbbell Romanian Deadlift", "Dumbbell Walking Lunge", "Dumbbell Step-Up"],
+      CORE: ["Dumbbell Suitcase Carry", "Dumbbell Dead Bug", "Dumbbell Russian Twist", "Dumbbell Woodchopper"],
+      ATHLETIC: ["Dumbbell Thruster", "Dumbbell Clean and Press", "Dumbbell Snatch", "Dumbbell Farmer Carry"],
+    },
+    MACHINE: {
+      PUSH: ["Machine Chest Press", "Machine Shoulder Press", "Pec Deck", "Cable Triceps Pushdown"],
+      PULL: ["Lat Pulldown", "Seated Cable Row", "Machine Row", "Cable Curl"],
+      LOWER: ["Leg Press", "Leg Extension", "Lying Leg Curl", "Standing Calf Raise"],
+      CORE: ["Cable Crunch", "Cable Woodchopper", "Pallof Press", "Machine Ab Crunch"],
+      ATHLETIC: ["Sled Push", "Battle Ropes", "Cable High Pull", "SkiErg Intervals"],
+    },
+    BARBELL: {
+      PUSH: ["Barbell Bench Press", "Overhead Press", "Close-Grip Bench Press", "Landmine Press"],
+      PULL: ["Barbell Row", "Rack Pull", "Barbell Curl", "Pendlay Row"],
+      LOWER: ["Back Squat", "Romanian Deadlift", "Front Squat", "Barbell Hip Thrust"],
+      CORE: ["Barbell Rollout", "Landmine Rotation", "Zercher Carry", "Weighted Plank"],
+      ATHLETIC: ["Power Clean", "Push Press", "Barbell Complex", "Landmine Thruster"],
+    },
+  },
+} as const;
+
+function equipmentKey(text = "") {
+  const t = text.toLowerCase();
+  if (/dumb\s?bells?|dumbell|db\b/.test(t)) return "DUMBBELL" as const;
+  if (/band|resistance/.test(t)) return "BAND" as const;
+  if (/kettle\s?bell|kb\b/.test(t)) return "KETTLEBELL" as const;
+  if (/machine|cable|lat pulldown|leg press/.test(t)) return "MACHINE" as const;
+  if (/barbell|squat rack|rack|bench press/.test(t)) return "BARBELL" as const;
+  return null;
+}
+
 const FOCUS_MAP: Record<string, (keyof typeof WORKOUTS.HOME)[]> = {
   "FULL BODY": ["LOWER", "PUSH", "PULL", "CORE"],
   UPPER: ["PUSH", "PULL", "PUSH", "PULL"],
@@ -52,6 +115,7 @@ export function createWorkoutPlan(opts: {
   focus: string;
   duration_min: number;
   gender?: string;
+  equipment?: string;
   seed?: number;
 }): WorkoutPlan {
   const location = opts.location === "HOME" ? "HOME" : "GYM";
@@ -62,17 +126,24 @@ export function createWorkoutPlan(opts: {
   const groups = FOCUS_MAP[focus];
   const exercises: WorkoutPlan["exercises"] = [];
   const used = new Set<string>();
+  const equipment = equipmentKey(opts.equipment);
 
   for (let i = 0; exercises.length < count && i < count * 4; i++) {
     const group = groups[i % groups.length];
-    const pool = rotate([...WORKOUTS[location][group]], seed + i * 7);
+    const specialized = equipment === "DUMBBELL" ? EQUIPMENT_WORKOUTS[location].DUMBBELL[group]
+      : equipment === "BAND" && location === "HOME" ? EQUIPMENT_WORKOUTS.HOME.BAND[group]
+      : equipment === "KETTLEBELL" && location === "HOME" ? EQUIPMENT_WORKOUTS.HOME.KETTLEBELL[group]
+      : equipment === "MACHINE" && location === "GYM" ? EQUIPMENT_WORKOUTS.GYM.MACHINE[group]
+      : equipment === "BARBELL" && location === "GYM" ? EQUIPMENT_WORKOUTS.GYM.BARBELL[group]
+      : undefined;
+    const pool = rotate([...(specialized ?? WORKOUTS[location][group])], seed + i * 7);
     const name = pool.find((item) => !used.has(item)) ?? pool[0];
     if (!name || used.has(name)) continue;
     used.add(name);
     const strength = location === "GYM";
     exercises.push({
       name,
-      reps: strength ? (i < 2 ? "4x6-8" : "3x10-12") : (i < 2 ? "4x12-15" : "3x30-45s"),
+      reps: strength || equipment ? (i < 2 ? "4x8-10" : "3x10-12") : (i < 2 ? "4x12-15" : "3x30-45s"),
       rest_sec: strength ? (i < 2 ? 120 : 75) : 60,
       cue: i === 0 ? "Brace first, move with control" : i === 1 ? "Stop 1–2 reps before failure" : "Clean reps only",
     });
@@ -89,7 +160,7 @@ export function createWorkoutPlan(opts: {
 
   return {
     title: `${focus} Engine`,
-    subtitle: `${location} · READY NOW`,
+    subtitle: `${location}${equipment ? ` · ${equipment}` : ""} · READY NOW`,
     duration_min: duration,
     rpe: focus === "ATHLETIC" ? 8 : 7,
     volume_kg: volume,
@@ -158,14 +229,86 @@ const MEALS = {
 
 type MealRow = readonly [string, readonly string[], number, readonly string[]];
 
+const KNOWN_FOODS = [
+  "chicken breast", "greek yogurt", "turkey slices", "turkey mince", "sweet potato", "black beans", "rice cakes",
+  "eggs", "oats", "berries", "yogurt", "toast", "avocado", "fruit", "banana", "tofu", "spinach", "tomato",
+  "potato", "chicken", "rice", "broccoli", "olive oil", "salmon", "green beans", "lemon", "chickpeas", "quinoa",
+  "cucumber", "feta", "edamame", "greens", "beef", "peppers", "wrap", "salad", "pasta", "cod", "asparagus",
+  "lentils", "coconut milk", "corn", "salsa", "noodles", "vegetables", "ginger", "protein shake", "apple", "honey",
+  "cottage cheese", "pineapple", "hummus", "carrots", "pita", "cheese", "tuna", "bread", "milk", "peanut butter",
+];
+
+const ALLERGY_GROUPS: { trigger: RegExp; avoid: string[] }[] = [
+  { trigger: /lactose|dairy|milk|cheese|yogurt|whey|butter|cream/i, avoid: ["milk", "cheese", "yogurt", "Greek yogurt", "cottage cheese", "feta", "butter", "cream", "whey"] },
+  { trigger: /gluten|celiac|wheat|bread|pasta|toast|wrap|pita/i, avoid: ["wheat", "bread", "pasta", "toast", "wrap", "pita", "noodles"] },
+  { trigger: /nut|peanut|almond|cashew|walnut|pistachio|hazelnut/i, avoid: ["nuts", "peanut", "peanut butter", "almond", "cashew", "walnut", "pistachio", "hazelnut"] },
+  { trigger: /shellfish|shrimp|prawn|crab|lobster|oyster|mussel|clam|scallop/i, avoid: ["shrimp", "prawns", "crab", "lobster", "oysters", "mussels", "clams", "scallops"] },
+  { trigger: /egg|eggs|mayonnaise/i, avoid: ["egg", "eggs", "mayonnaise"] },
+  { trigger: /soy|tofu|tempeh|edamame|soy sauce/i, avoid: ["soy", "tofu", "tempeh", "edamame", "soy sauce"] },
+  { trigger: /fish|salmon|tuna|cod|anchov/i, avoid: ["fish", "salmon", "tuna", "cod", "anchovies"] },
+  { trigger: /pork|ham|bacon|prosciutto|lard|halal|kosher/i, avoid: ["pork", "ham", "bacon", "prosciutto", "lard"] },
+  { trigger: /sugar|diabetic/i, avoid: ["honey", "sugar", "syrup"] },
+];
+
+function normalizeFood(item: string) {
+  return item.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function parseFoods(text = "") {
+  const lower = text.toLowerCase();
+  const found = KNOWN_FOODS.filter((food) => lower.includes(food.toLowerCase()));
+  const listed = /[,;\n]/.test(text) ? text.split(/[\n,;]+/).map(normalizeFood).filter((x) => x.length > 1 && x.length < 36) : [];
+  return Array.from(new Set([...found, ...listed].map(normalizeFood))).slice(0, 10);
+}
+
+function avoidTerms(text = "") {
+  const avoid = new Set<string>();
+  ALLERGY_GROUPS.forEach((group) => {
+    if (group.trigger.test(text)) group.avoid.forEach((item) => avoid.add(normalizeFood(item)));
+  });
+  return avoid;
+}
+
+function hasAvoidedFood(items: readonly string[], avoid: Set<string>) {
+  return items.some((item) => {
+    const n = normalizeFood(item);
+    return Array.from(avoid).some((bad) => n.includes(bad) || bad.includes(n));
+  });
+}
+
+function customMeal(slot: string, time: string, foods: string[], kcal: number) {
+  const primary = foods[0] ?? "rice";
+  const title = `${primary.replace(/\b\w/g, (c) => c.toUpperCase())} ${slot}`;
+  return {
+    name: title,
+    time,
+    kcal,
+    items: foods.length ? foods : [primary],
+    prep_min: slot === "Snack" ? 2 : 5,
+    cook_min: slot === "Snack" ? 0 : 12,
+    recipe: slot === "Snack"
+      ? [`Use only: ${(foods.length ? foods : [primary]).join(", ")}`, "Keep it simple and portion to your calories"]
+      : [`Prepare only these items: ${(foods.length ? foods : [primary]).join(", ")}`, "Cook or assemble simply", "Season with safe basics only"],
+  };
+}
+
 function chooseMeal(slot: keyof typeof MEALS, diet: DietChoice, seed: number): MealRow {
   const key = diet === "veg" || diet === "nonveg" ? diet : "any";
   return rotate([...MEALS[slot][key]], seed)[0] as MealRow;
 }
 
-export function createMealPlan(opts: { diet: DietChoice; calorie_target: number; seed?: number }): DietPlan {
+export function createMealPlan(opts: { diet: DietChoice; calorie_target: number; ingredients?: string; restrictions?: string; seed?: number }): DietPlan {
   const target = safeNumber(opts.calorie_target, 2200, 1300, 4200);
   const seed = opts.seed ?? Date.now();
+  const avoid = avoidTerms(opts.restrictions);
+  const availableFoods = parseFoods(opts.ingredients).filter((item) => !hasAvoidedFood([item], avoid));
+  if (availableFoods.length > 0) {
+    const calories = [0.24, 0.34, 0.12, 0.3].map((share) => Math.max(180, Math.round((target * share) / 10) * 10));
+    const slots = [["Breakfast", "08:00"], ["Lunch", "13:00"], ["Snack", "16:30"], ["Dinner", "19:30"]] as const;
+    const meals = slots.map(([slot, time], index) => customMeal(slot, time, rotate(availableFoods, seed + index).slice(0, Math.min(4, availableFoods.length)), calories[index]));
+    const total = meals.reduce((sum, meal) => sum + meal.kcal, 0);
+    return { date: todayISO(), kcal: total, protein_g: Math.round((total * 0.3) / 4), carbs_g: Math.round((total * 0.42) / 4), fat_g: Math.round((total * 0.28) / 9), meals };
+  }
   const rows = [
     ["Breakfast", "08:00", chooseMeal("breakfast", opts.diet, seed + 1)],
     ["Lunch", "13:00", chooseMeal("lunch", opts.diet, seed + 2)],
@@ -174,7 +317,9 @@ export function createMealPlan(opts: { diet: DietChoice; calorie_target: number;
   ] as const;
   const rawTotal = rows.reduce((sum, row) => sum + row[2][2], 0);
   const scale = target / rawTotal;
-  const meals = rows.map(([slot, time, row]) => ({
+  const meals = rows.map(([slot, time, row]) => hasAvoidedFood(row[1], avoid)
+    ? customMeal(slot, time, ["rice", "greens", "olive oil"].filter((item) => !hasAvoidedFood([item], avoid)), Math.max(180, Math.round((row[2] * scale) / 10) * 10))
+    : ({
     name: row[0],
     time,
     kcal: Math.max(180, Math.round((row[2] * scale) / 10) * 10),
@@ -198,19 +343,23 @@ export function createMealPlan(opts: { diet: DietChoice; calorie_target: number;
 export function createCoachReply(messages: Pick<ChatMessage, "role" | "content">[]): string {
   const last = [...messages].reverse().find((m) => m.role === "user")?.content.toLowerCase() ?? "";
   if (/meal|food|diet|eat|protein|calorie|breakfast|lunch|dinner/.test(last)) {
-    return "Here is the move: build every meal around protein first, then add one carb and one color.\n\nFast plate:\n• Protein: chicken, eggs, tofu, fish, Greek yogurt\n• Carb: rice, oats, potato, wrap, fruit\n• Color: greens, peppers, berries, cucumber\n\nIf you want, tell me your goal and foods you have and I’ll make it tighter.";
+    const foods = parseFoods(last).filter((item) => !hasAvoidedFood([item], avoidTerms(last)));
+    if (foods.length) return normalReply(`Yes — I’ll keep it to what you have: ${foods.join(", ")}. Make the main plate with ${foods.slice(0, 3).join(" + ")}, keep portions controlled, and avoid anything you listed as an allergy. If protein is low, use the highest-protein item first.`);
+    return normalReply("Sure — for meals, keep it simple: protein first, then one carb, then fruit or vegetables. Tell me the exact foods you have and any allergy, and I’ll keep the answer only to those foods.");
   }
   if (/workout|gym|train|exercise|push|pull|legs|cardio|muscle/.test(last)) {
-    return "Do this today:\n\n• Warm-up: 5 minutes easy movement\n• Squat or lunge: 4 sets\n• Push: 4 sets\n• Pull: 4 sets\n• Core: 3 sets\n• Finish: 8 minutes brisk walk\n\nKeep 1–2 reps in reserve. Clean form beats heavy ego reps.";
+    const location = /home/.test(last) ? "home" : /gym/.test(last) ? "gym" : "your selected place";
+    const equipment = equipmentKey(last)?.toLowerCase() ?? "available equipment";
+    return normalReply(`Yes — I’ll keep the workout to ${location} only and use ${equipment} only. Start with 5 minutes warm-up, then do 4–6 exercises for your focus, 3–4 sets each, resting 60–90 seconds. No random gym machines if you picked home.`);
   }
   if (/routine|schedule|morning|habit|plan/.test(last)) {
-    return "Simple routine:\n\n1. Drink water immediately\n2. 10 minutes sunlight or walking\n3. Write the top 3 tasks\n4. Train before scrolling\n5. Protein at the first meal\n\nMake it boring enough that you can repeat it.";
+    return normalReply("A simple routine: drink water, get 10 minutes of movement, write your top 3 tasks, train before scrolling, and eat protein at your first meal. Keep it repeatable.");
   }
   if (/sleep|tired|energy|rest/.test(last)) {
-    return "Tonight: fixed bedtime, no caffeine late, dim lights for 45 minutes, and keep the room cool. If energy is low tomorrow, train lighter but still show up.";
+    return normalReply("Tonight: fixed bedtime, no late caffeine, dim lights for 45 minutes, and keep the room cool. If you’re still tired tomorrow, train lighter but still show up.");
   }
   if (/hi|hello|hey|yo/.test(last)) {
-    return "I’m here. Ask me for a workout, meal plan, routine, calories, motivation, or a quick fix for today.";
+    return normalReply("Hey, I’m here. Ask me for a workout, meal plan, calories, routine, or a quick fix for today.");
   }
-  return "I’ve got you. Send me your goal, time available, equipment, and any food limits. I’ll turn it into a clear next step.";
+  return normalReply("I’ve got you. Send me your goal, time available, equipment, foods you have, and any allergy. I’ll keep it clear and limited to what you give me.");
 }

@@ -66,6 +66,7 @@ export default function Workout() {
       focus: intake.focus,
       duration_min: intake.duration_min,
       gender: gender || "OTHER",
+      equipment: intake.equipment,
       seed: Math.floor(Math.random() * 1_000_000) ^ Date.now(),
     });
     setPlan(nextPlan);
