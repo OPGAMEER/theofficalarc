@@ -2,6 +2,10 @@ import type { ChatMessage, DietPlan, WorkoutPlan } from "@/lib/arc-store";
 
 type DietChoice = "any" | "veg" | "nonveg";
 
+const REPLY_LIMIT = 520;
+
+const normalReply = (text: string) => text.length <= REPLY_LIMIT ? text : `${text.slice(0, REPLY_LIMIT - 1).trim()}…`;
+
 const todayISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -35,6 +39,65 @@ const WORKOUTS = {
   },
 } as const;
 
+const EQUIPMENT_WORKOUTS = {
+  HOME: {
+    DUMBBELL: {
+      PUSH: ["Dumbbell Floor Press", "Dumbbell Shoulder Press", "Dumbbell Push Press", "Dumbbell Triceps Extension"],
+      PULL: ["One-Arm Dumbbell Row", "Dumbbell Reverse Fly", "Dumbbell Pullover", "Dumbbell Hammer Curl"],
+      LOWER: ["Goblet Squat", "Dumbbell Romanian Deadlift", "Dumbbell Reverse Lunge", "Dumbbell Glute Bridge"],
+      CORE: ["Dumbbell Dead Bug", "Dumbbell Russian Twist", "Dumbbell Side Bend", "Weighted Plank Pull-Through"],
+      ATHLETIC: ["Dumbbell Thruster", "Dumbbell Clean", "Dumbbell Snatch", "Dumbbell Farmer March"],
+    },
+    BAND: {
+      PUSH: ["Band Chest Press", "Band Shoulder Press", "Band Triceps Pressdown", "Band Push-Up"],
+      PULL: ["Band Row", "Band Lat Pulldown", "Band Face Pull", "Band Curl"],
+      LOWER: ["Band Squat", "Band Romanian Deadlift", "Band Lateral Walk", "Band Glute Bridge"],
+      CORE: ["Band Pallof Press", "Band Woodchopper", "Band Dead Bug", "Band Plank Row"],
+      ATHLETIC: ["Band Sprint Drive", "Band Squat to Press", "Band High Pull", "Band Fast Row"],
+    },
+    KETTLEBELL: {
+      PUSH: ["Kettlebell Floor Press", "Kettlebell Strict Press", "Kettlebell Push Press", "Kettlebell Halo"],
+      PULL: ["Kettlebell Row", "Kettlebell High Pull", "Kettlebell Curl", "Kettlebell Pullover"],
+      LOWER: ["Kettlebell Goblet Squat", "Kettlebell Swing", "Kettlebell Romanian Deadlift", "Kettlebell Reverse Lunge"],
+      CORE: ["Kettlebell Plank Drag", "Kettlebell Russian Twist", "Kettlebell Windmill", "Kettlebell Suitcase Carry"],
+      ATHLETIC: ["Kettlebell Swing", "Kettlebell Clean", "Kettlebell Snatch", "Kettlebell Thruster"],
+    },
+  },
+  GYM: {
+    DUMBBELL: {
+      PUSH: ["Dumbbell Bench Press", "Incline Dumbbell Press", "Dumbbell Shoulder Press", "Dumbbell Lateral Raise"],
+      PULL: ["Chest-Supported Dumbbell Row", "One-Arm Dumbbell Row", "Dumbbell Rear Delt Fly", "Dumbbell Hammer Curl"],
+      LOWER: ["Dumbbell Bulgarian Split Squat", "Dumbbell Romanian Deadlift", "Dumbbell Walking Lunge", "Dumbbell Step-Up"],
+      CORE: ["Dumbbell Suitcase Carry", "Dumbbell Dead Bug", "Dumbbell Russian Twist", "Dumbbell Woodchopper"],
+      ATHLETIC: ["Dumbbell Thruster", "Dumbbell Clean and Press", "Dumbbell Snatch", "Dumbbell Farmer Carry"],
+    },
+    MACHINE: {
+      PUSH: ["Machine Chest Press", "Machine Shoulder Press", "Pec Deck", "Cable Triceps Pushdown"],
+      PULL: ["Lat Pulldown", "Seated Cable Row", "Machine Row", "Cable Curl"],
+      LOWER: ["Leg Press", "Leg Extension", "Lying Leg Curl", "Standing Calf Raise"],
+      CORE: ["Cable Crunch", "Cable Woodchopper", "Pallof Press", "Machine Ab Crunch"],
+      ATHLETIC: ["Sled Push", "Battle Ropes", "Cable High Pull", "SkiErg Intervals"],
+    },
+    BARBELL: {
+      PUSH: ["Barbell Bench Press", "Overhead Press", "Close-Grip Bench Press", "Landmine Press"],
+      PULL: ["Barbell Row", "Rack Pull", "Barbell Curl", "Pendlay Row"],
+      LOWER: ["Back Squat", "Romanian Deadlift", "Front Squat", "Barbell Hip Thrust"],
+      CORE: ["Barbell Rollout", "Landmine Rotation", "Zercher Carry", "Weighted Plank"],
+      ATHLETIC: ["Power Clean", "Push Press", "Barbell Complex", "Landmine Thruster"],
+    },
+  },
+} as const;
+
+function equipmentKey(text = "") {
+  const t = text.toLowerCase();
+  if (/dumb\s?bells?|dumbell|db\b/.test(t)) return "DUMBBELL" as const;
+  if (/band|resistance/.test(t)) return "BAND" as const;
+  if (/kettle\s?bell|kb\b/.test(t)) return "KETTLEBELL" as const;
+  if (/machine|cable|lat pulldown|leg press/.test(t)) return "MACHINE" as const;
+  if (/barbell|squat rack|rack|bench press/.test(t)) return "BARBELL" as const;
+  return null;
+}
+
 const FOCUS_MAP: Record<string, (keyof typeof WORKOUTS.HOME)[]> = {
   "FULL BODY": ["LOWER", "PUSH", "PULL", "CORE"],
   UPPER: ["PUSH", "PULL", "PUSH", "PULL"],
@@ -52,6 +115,7 @@ export function createWorkoutPlan(opts: {
   focus: string;
   duration_min: number;
   gender?: string;
+  equipment?: string;
   seed?: number;
 }): WorkoutPlan {
   const location = opts.location === "HOME" ? "HOME" : "GYM";
@@ -65,14 +129,16 @@ export function createWorkoutPlan(opts: {
 
   for (let i = 0; exercises.length < count && i < count * 4; i++) {
     const group = groups[i % groups.length];
-    const pool = rotate([...WORKOUTS[location][group]], seed + i * 7);
+    const equipment = equipmentKey(opts.equipment);
+    const specialized = equipment && EQUIPMENT_WORKOUTS[location][equipment as keyof typeof EQUIPMENT_WORKOUTS[typeof location]]?.[group];
+    const pool = rotate([...(specialized ?? WORKOUTS[location][group])], seed + i * 7);
     const name = pool.find((item) => !used.has(item)) ?? pool[0];
     if (!name || used.has(name)) continue;
     used.add(name);
     const strength = location === "GYM";
     exercises.push({
       name,
-      reps: strength ? (i < 2 ? "4x6-8" : "3x10-12") : (i < 2 ? "4x12-15" : "3x30-45s"),
+      reps: strength || equipment ? (i < 2 ? "4x8-10" : "3x10-12") : (i < 2 ? "4x12-15" : "3x30-45s"),
       rest_sec: strength ? (i < 2 ? 120 : 75) : 60,
       cue: i === 0 ? "Brace first, move with control" : i === 1 ? "Stop 1–2 reps before failure" : "Clean reps only",
     });
@@ -89,7 +155,7 @@ export function createWorkoutPlan(opts: {
 
   return {
     title: `${focus} Engine`,
-    subtitle: `${location} · READY NOW`,
+    subtitle: `${location}${equipment ? ` · ${equipment}` : ""} · READY NOW`,
     duration_min: duration,
     rpe: focus === "ATHLETIC" ? 8 : 7,
     volume_kg: volume,
