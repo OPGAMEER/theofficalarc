@@ -126,11 +126,16 @@ export function createWorkoutPlan(opts: {
   const groups = FOCUS_MAP[focus];
   const exercises: WorkoutPlan["exercises"] = [];
   const used = new Set<string>();
+  const equipment = equipmentKey(opts.equipment);
 
   for (let i = 0; exercises.length < count && i < count * 4; i++) {
     const group = groups[i % groups.length];
-    const equipment = equipmentKey(opts.equipment);
-    const specialized = equipment && EQUIPMENT_WORKOUTS[location][equipment as keyof typeof EQUIPMENT_WORKOUTS[typeof location]]?.[group];
+    const specialized = equipment === "DUMBBELL" ? EQUIPMENT_WORKOUTS[location].DUMBBELL[group]
+      : equipment === "BAND" && location === "HOME" ? EQUIPMENT_WORKOUTS.HOME.BAND[group]
+      : equipment === "KETTLEBELL" && location === "HOME" ? EQUIPMENT_WORKOUTS.HOME.KETTLEBELL[group]
+      : equipment === "MACHINE" && location === "GYM" ? EQUIPMENT_WORKOUTS.GYM.MACHINE[group]
+      : equipment === "BARBELL" && location === "GYM" ? EQUIPMENT_WORKOUTS.GYM.BARBELL[group]
+      : undefined;
     const pool = rotate([...(specialized ?? WORKOUTS[location][group])], seed + i * 7);
     const name = pool.find((item) => !used.has(item)) ?? pool[0];
     if (!name || used.has(name)) continue;
