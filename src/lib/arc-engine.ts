@@ -276,19 +276,58 @@ function hasAvoidedFood(items: readonly string[], avoid: Set<string>) {
   });
 }
 
-function customMeal(slot: string, time: string, foods: string[], kcal: number) {
-  const primary = foods[0] ?? "rice";
-  const title = `${primary.replace(/\b\w/g, (c) => c.toUpperCase())} ${slot}`;
+const PROTEIN_FOODS = ["chicken", "chicken breast", "turkey", "turkey slices", "turkey mince", "beef", "lean beef", "salmon", "tuna", "cod", "fish", "eggs", "egg", "tofu", "tempeh", "chickpeas", "lentils", "black beans", "beans", "greek yogurt", "yogurt", "cottage cheese", "cheese", "protein shake", "whey", "paneer", "shrimp"];
+const CARB_FOODS = ["rice", "oats", "quinoa", "pasta", "noodles", "potato", "potatoes", "sweet potato", "bread", "toast", "wrap", "pita", "rice cakes", "tortilla"];
+const VEG_FOODS = ["broccoli", "spinach", "greens", "salad", "peppers", "tomato", "cucumber", "asparagus", "green beans", "carrots", "corn", "vegetables", "edamame"];
+const FAT_FOODS = ["olive oil", "avocado", "peanut butter", "nuts", "butter", "coconut milk", "feta"];
+const FRUIT_FOODS = ["banana", "apple", "berries", "pineapple", "fruit", "lemon"];
+
+function categorize(items: string[]) {
+  const inList = (list: string[], item: string) => list.some((x) => item.includes(x) || x.includes(item));
   return {
-    name: title,
+    protein: items.filter((i) => inList(PROTEIN_FOODS, i)),
+    carb: items.filter((i) => inList(CARB_FOODS, i)),
+    veg: items.filter((i) => inList(VEG_FOODS, i)),
+    fat: items.filter((i) => inList(FAT_FOODS, i)),
+    fruit: items.filter((i) => inList(FRUIT_FOODS, i)),
+  };
+}
+
+function titleCase(s: string) {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function customMeal(slot: string, time: string, foods: string[], kcal: number) {
+  const safeFoods = foods.length ? foods : ["rice", "greens"];
+  const { protein, carb, veg, fat, fruit } = categorize(safeFoods);
+  const hero = protein[0] ?? carb[0] ?? safeFoods[0];
+  const partner = carb.find((c) => c !== hero) ?? veg[0] ?? fruit[0] ?? "";
+  const styleByCarb: Record<string, string> = { rice: "Bowl", pasta: "Plate", noodles: "Stir-Fry", oats: "Bowl", quinoa: "Bowl", potato: "Plate", "sweet potato": "Plate", bread: "Toast", toast: "Toast", wrap: "Wrap", pita: "Pocket", tortilla: "Wrap" };
+  const carbStyle = carb[0] ? styleByCarb[carb[0]] ?? "Plate" : slot === "Snack" ? "Box" : "Plate";
+  const name = `${titleCase(hero)}${partner ? ` & ${titleCase(partner)}` : ""} ${carbStyle}`;
+  const recipe: string[] = [];
+  if (slot === "Snack") {
+    recipe.push(`Use only: ${safeFoods.join(", ")}.`);
+    if (protein[0]) recipe.push(`Portion ${protein[0]} for ~20g protein.`);
+    if (fruit[0] || veg[0]) recipe.push(`Pair with ${(fruit[0] ?? veg[0])} on the side.`);
+    recipe.push(`Stop at ~${kcal} kcal — no extras.`);
+  } else {
+    if (protein[0]) recipe.push(`Cook ${protein[0]} simply — pan-sear, bake, or boil. Season with salt, pepper, and any safe spice.`);
+    else recipe.push(`Build a protein base from what you have (${safeFoods.slice(0, 2).join(" / ")}).`);
+    if (carb[0]) recipe.push(`Prepare ${carb[0]} as the base — ${kcal > 600 ? "generous" : "moderate"} portion.`);
+    if (veg[0]) recipe.push(`Add ${veg.slice(0, 2).join(" + ")} — steam, roast, or quick stir-fry.`);
+    if (fat[0]) recipe.push(`Finish with ${fat[0]} for healthy fats and flavor.`);
+    if (fruit[0] && slot !== "Dinner") recipe.push(`Add ${fruit[0]} on the side or as dessert.`);
+    recipe.push(`Plate it — target ~${kcal} kcal. Eat slowly.`);
+  }
+  return {
+    name,
     time,
     kcal,
-    items: foods.length ? foods : [primary],
-    prep_min: slot === "Snack" ? 2 : 5,
-    cook_min: slot === "Snack" ? 0 : 12,
-    recipe: slot === "Snack"
-      ? [`Use only: ${(foods.length ? foods : [primary]).join(", ")}`, "Keep it simple and portion to your calories"]
-      : [`Prepare only these items: ${(foods.length ? foods : [primary]).join(", ")}`, "Cook or assemble simply", "Season with safe basics only"],
+    items: safeFoods,
+    prep_min: slot === "Snack" ? 2 : 6,
+    cook_min: slot === "Snack" ? 0 : 14,
+    recipe,
   };
 }
 
@@ -340,26 +379,96 @@ export function createMealPlan(opts: { diet: DietChoice; calorie_target: number;
   };
 }
 
+function pick<T>(arr: T[], seed = Date.now()): T {
+  return arr[Math.abs(Math.floor(seed)) % arr.length];
+}
+function stripPunct(s: string) {
+  return s.toLowerCase().replace(/[^\w\s'-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export function createCoachReply(messages: Pick<ChatMessage, "role" | "content">[]): string {
-  const last = [...messages].reverse().find((m) => m.role === "user")?.content.toLowerCase() ?? "";
-  if (/meal|food|diet|eat|protein|calorie|breakfast|lunch|dinner/.test(last)) {
+  const lastRaw = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+  const last = stripPunct(lastRaw);
+  const seed = lastRaw.length + Date.now();
+  if (!last) return normalReply("I'm here. What do you want to work on — workout, meal, sleep, or just talk it out?");
+
+  if (/^(hi+|hey+|hello+|yo|sup|hola|howdy|namaste|salaam|hiya)\b/.test(last)) {
+    return normalReply(pick([
+      "Hey! Good to see you. What are we doing today — workout, meal, or just a quick chat?",
+      "Hi there. How can I help — training, food, sleep, or something else on your mind?",
+      "Hello! I'm Arc. Tell me what you want to tackle and I'll keep it simple.",
+    ], seed));
+  }
+  if (/\bhow (are|r) (you|u)\b|how('?s| is) it going|what'?s up|how you doing/.test(last)) {
+    return normalReply(pick([
+      "Doing well — running smooth. More importantly, how are you feeling today? Energy, sleep, mood?",
+      "All good on my end. How's your day going? Anything I can help you push through?",
+    ], seed));
+  }
+  if (/your name|who are you|what are you|who('?s| is) this/.test(last)) {
+    return normalReply("I'm Arc — your training, nutrition, and routine coach inside this app. Ask me anything: a workout, a meal, a calorie target, or just how to start.");
+  }
+  if (/\b(thanks|thank you|thx|ty|appreciate)\b/.test(last)) {
+    return normalReply(pick(["Anytime. I'm here whenever you need the next push.", "You got it. Tell me when you want the next step."], seed));
+  }
+  if (/^(bye|goodbye|cya|see ya|gn|good night|gtg)\b/.test(last)) {
+    return normalReply("Catch you later. Hydrate, sleep well, and come back tomorrow stronger.");
+  }
+  if (/help|what can you do|how do you work|features|capabilities/.test(last)) {
+    return normalReply("I can build a workout (home or gym, your equipment only), a meal plan (your ingredients, your allergies), explain calories, suggest a daily routine, and answer fitness or food questions. Just ask in plain words.");
+  }
+  if (/\b(lazy|unmotivated|tired|sad|stress(ed)?|anxious|down|depress|burn(ed|t)? out|give up|quit)\b/.test(last)) {
+    return normalReply(pick([
+      "Heard. Lower the bar today — 10 minutes of movement, one solid meal, water. Showing up beats doing nothing. What's the smallest thing you can do in the next hour?",
+      "Rough days happen. Don't aim for perfect — aim for one rep, one walk, one glass of water. Tell me your day and I'll shape it small.",
+    ], seed));
+  }
+  if (/lose (weight|fat)|fat loss|cut(ting)?|slim down|get lean/.test(last)) {
+    return normalReply("Fat loss = small daily calorie deficit + high protein + strength training 3–5x/week + steps. Don't crash diet. Open Diet, set goal to Fat Loss, and Arc will set calories for you.");
+  }
+  if (/gain (weight|muscle)|bulk|get big|build mass/.test(last)) {
+    return normalReply("Muscle gain = slight calorie surplus + 1.6–2.2g protein per kg + progressive overload 4–5x/week + 7–9h sleep. Open Diet, set goal to Bulk, and follow the workout plan consistently.");
+  }
+  if (/how much protein|protein per|protein intake/.test(last)) {
+    return normalReply("Aim for ~1.6–2.2g protein per kg of bodyweight per day. Split across 3–4 meals. Best sources: chicken, eggs, fish, Greek yogurt, tofu, lentils, whey.");
+  }
+  if (/calorie|kcal|maintenance|tdee/.test(last)) {
+    return normalReply("Your maintenance depends on weight, height, age, sex, and activity. Open Diet — enter your stats and Arc calculates it (Mifflin-St Jeor) and sets a target based on your goal.");
+  }
+  if (/meal|food|recipe|eat|breakfast|lunch|dinner|snack|diet|cook/.test(last)) {
     const foods = parseFoods(last).filter((item) => !hasAvoidedFood([item], avoidTerms(last)));
-    if (foods.length) return normalReply(`Yes — I’ll keep it to what you have: ${foods.join(", ")}. Make the main plate with ${foods.slice(0, 3).join(" + ")}, keep portions controlled, and avoid anything you listed as an allergy. If protein is low, use the highest-protein item first.`);
-    return normalReply("Sure — for meals, keep it simple: protein first, then one carb, then fruit or vegetables. Tell me the exact foods you have and any allergy, and I’ll keep the answer only to those foods.");
+    if (foods.length) return normalReply(`Got it — I'll stick to: ${foods.join(", ")}. Build the plate with ${foods.slice(0, 3).join(" + ")}, protein first, then carbs, then veg. Open Diet, paste these into "ingredients" and tap Generate.`);
+    return normalReply("For meals: protein first, one carb, one veg, a splash of fat. Tell me the foods you have and any allergy and I'll work only with those. Or open Diet and tap Generate.");
   }
-  if (/workout|gym|train|exercise|push|pull|legs|cardio|muscle/.test(last)) {
-    const location = /home/.test(last) ? "home" : /gym/.test(last) ? "gym" : "your selected place";
-    const equipment = equipmentKey(last)?.toLowerCase() ?? "available equipment";
-    return normalReply(`Yes — I’ll keep the workout to ${location} only and use ${equipment} only. Start with 5 minutes warm-up, then do 4–6 exercises for your focus, 3–4 sets each, resting 60–90 seconds. No random gym machines if you picked home.`);
+  if (/workout|gym|train|exercise|push|pull|legs?|cardio|muscle|reps?|sets?|lift|squat|deadlift|bench/.test(last)) {
+    const location = /\bhome\b/.test(last) ? "home" : /\bgym\b/.test(last) ? "gym" : "your selected place";
+    const eq = equipmentKey(last)?.toLowerCase();
+    return normalReply(`For ${location}${eq ? ` with ${eq}` : ""}: 5 min warm-up, 4–6 exercises for your focus, 3–4 sets of 8–12 reps, 60–90s rest, 5 min cool-down. Open Workout, set location + equipment, Arc gives only matching exercises.`);
   }
-  if (/routine|schedule|morning|habit|plan/.test(last)) {
-    return normalReply("A simple routine: drink water, get 10 minutes of movement, write your top 3 tasks, train before scrolling, and eat protein at your first meal. Keep it repeatable.");
+  if (/routine|schedule|morning|habit|productiv/.test(last)) {
+    return normalReply("Simple winning day: water + 10 min movement on wake-up, top 3 tasks written before phone, protein at first meal, train before scrolling, lights down 45 min before bed. Repeat.");
   }
-  if (/sleep|tired|energy|rest/.test(last)) {
-    return normalReply("Tonight: fixed bedtime, no late caffeine, dim lights for 45 minutes, and keep the room cool. If you’re still tired tomorrow, train lighter but still show up.");
+  if (/sleep|insomnia|nap|rest\b/.test(last)) {
+    return normalReply("Sleep fix: fixed wake-up time, no caffeine after 2pm, dim lights 45 min before bed, cool dark room, phone out of arm's reach. Aim 7–9h.");
   }
-  if (/hi|hello|hey|yo/.test(last)) {
-    return normalReply("Hey, I’m here. Ask me for a workout, meal plan, calories, routine, or a quick fix for today.");
+  if (/water|hydrat|drink/.test(last)) {
+    return normalReply("Target ~30–40 ml per kg bodyweight per day, more if training or hot weather. Keep a bottle in sight — that's 80% of the battle.");
   }
-  return normalReply("I’ve got you. Send me your goal, time available, equipment, foods you have, and any allergy. I’ll keep it clear and limited to what you give me.");
+  if (/what time|what day|what date|today.*date/.test(last)) {
+    return normalReply(`It's ${new Date().toLocaleString()} on your device. Now — what are we doing with it?`);
+  }
+  if (/^(yes|yeah|yep|ok|okay|sure|alright|cool|nice)\b/.test(last)) {
+    return normalReply("Good. Tell me the next thing — workout, meal, or a question.");
+  }
+  if (/^(no|nope|nah)\b/.test(last)) {
+    return normalReply("All good. What would you rather work on?");
+  }
+  if (/^(what|why|how|when|where|can|should|do|does|is|are|will)\b/.test(last) || lastRaw.includes("?")) {
+    return normalReply(`Good question. Short answer: pick one small action you can do today on "${lastRaw.slice(0, 60)}", do it, then ask me the next step. Give me your goal + time + what you have and I'll go specific.`);
+  }
+  return normalReply(pick([
+    `Got you. Tell me more about "${lastRaw.slice(0, 60)}" — goal, time, what you have — and I'll give a clear next step.`,
+    "I'm listening. Share your goal and what you have (food, equipment, time) and I'll keep the answer tight.",
+    "Tell me more. The clearer your message, the more useful I am — goal, situation, what's blocking you.",
+  ], seed));
 }
