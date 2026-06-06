@@ -386,6 +386,58 @@ function stripPunct(s: string) {
   return s.toLowerCase().replace(/[^\w\s'-]/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function directQuestionAnswer(lastRaw: string, last: string): string | null {
+  const has = (re: RegExp) => re.test(last);
+  const foods = parseFoods(last).filter((item) => !hasAvoidedFood([item], avoidTerms(last)));
+
+  if (has(/\b(what is|what are|explain|meaning of)\b.*\b(protein|carb|carbohydrate|fat|calorie|kcal|deficit|surplus|creatine|hypertrophy|progressive overload|metabolism|bmi)\b/)) {
+    if (has(/protein/)) return "Protein helps repair and build muscle. Aim for 1.6–2.2g per kg bodyweight daily from chicken, eggs, fish, Greek yogurt, tofu, lentils, or whey.";
+    if (has(/carb|carbohydrate/)) return "Carbs are your main training fuel. Choose rice, oats, potatoes, fruit, whole-grain bread, or quinoa and adjust portions based on your goal.";
+    if (has(/\bfat\b/)) return "Dietary fat supports hormones and joints. Keep it moderate from olive oil, avocado, nuts, eggs, fish, or dairy if you tolerate it.";
+    if (has(/calorie|kcal/)) return "A calorie is energy from food. Weight changes mostly come from average calories: deficit loses weight, surplus gains weight, maintenance stays stable.";
+    if (has(/deficit/)) return "A calorie deficit means eating slightly less energy than you burn. Keep it small, high-protein, and sustainable so you lose fat without crashing.";
+    if (has(/surplus/)) return "A calorie surplus means eating slightly more than you burn. Use a small surplus with hard strength training to gain muscle without too much fat.";
+    if (has(/creatine/)) return "Creatine helps strength and power. Most people take 3–5g daily, any time. Drink enough water. Avoid it only if your doctor told you to.";
+    if (has(/hypertrophy/)) return "Hypertrophy means muscle growth. Train close to failure, use 6–15 reps often, add volume over time, eat enough protein, and sleep well.";
+    if (has(/progressive overload/)) return "Progressive overload means slowly making training harder: more reps, more weight, better form, extra sets, or shorter rest over weeks.";
+    if (has(/metabolism/)) return "Metabolism is how your body uses energy. Muscle, body size, movement, food intake, sleep, and hormones all affect it.";
+    return "BMI is weight compared with height. It can be useful for population ranges, but it does not measure muscle, body fat, or fitness quality.";
+  }
+
+  if (has(/\b(how many|how much).*(calorie|kcal).*(banana|egg|rice|chicken|oats|milk|bread|potato|apple)/)) {
+    const table: Record<string, string> = { banana: "~105 kcal per medium banana", egg: "~70 kcal per large egg", rice: "~200 kcal per cooked cup", chicken: "~165 kcal per 100g cooked chicken breast", oats: "~150 kcal per 40g dry oats", milk: "~120 kcal per cup of milk", bread: "~80–110 kcal per slice", potato: "~160 kcal per medium potato", apple: "~95 kcal per medium apple" };
+    const item = Object.keys(table).find((key) => last.includes(key));
+    return item ? `${titleCase(item)} has ${table[item]}. Exact calories depend on portion size and cooking method.` : null;
+  }
+
+  if (has(/\b(can i|should i|is it ok to).*(eat|drink)\b/) || has(/\b(is|are).*(healthy|good|bad)\b/)) {
+    const named = foods.length ? foods.join(" + ") : "that food";
+    return `Yes, you can usually include ${named}. The key is portion size, your total calories, protein target, and allergies. If it fits your goal and does not trigger a restriction, it can stay.`;
+  }
+
+  if (has(/(what|when).*(eat|meal|food).*(before|pre).*(workout|gym|train)/)) return "Before training, eat easy fuel: carbs + a little protein 60–120 minutes before. Example: banana + yogurt, rice + eggs, oats + whey, or toast + peanut butter.";
+  if (has(/(what|when).*(eat|meal|food).*(after|post).*(workout|gym|train)/)) return "After training, get protein + carbs within a few hours. Example: chicken rice bowl, eggs and toast, tofu rice bowl, Greek yogurt with fruit, or a protein shake plus banana.";
+  if (has(/belly fat|lower belly|abs|six pack/)) return "You cannot spot-reduce belly fat. Build abs with core work, but reveal them with overall fat loss: calorie deficit, high protein, lifting, steps, sleep.";
+  if (has(/sore|doms|muscle pain|aching/)) return "If it is normal soreness, move lightly, hydrate, eat protein, sleep, and train the area gently after 24–48h. Sharp pain, swelling, or joint pain means stop and get checked.";
+  if (has(/warm ?up|stretch before|mobility/)) return "Warm up for 5–8 minutes: light cardio, joint circles, then 2 easy sets of your first exercise. Stretch hard after training, not before heavy lifts.";
+  if (has(/cardio.*weights|weights.*cardio|lift.*cardio/)) return "For fat loss or muscle, lift first, cardio after. For endurance priority, cardio first. If possible, separate hard cardio and heavy leg training by several hours.";
+  if (has(/beginner|start fitness|start gym|new to gym/)) return "Start simple: 3 full-body sessions weekly, 6–8 exercises, 2–3 sets each, easy cardio or walking on off days, and repeat for 4 weeks before changing everything.";
+  if (has(/push ?up|pushup/)) return "For better push-ups: hands under shoulders, body straight, elbows about 30–45° from your ribs, chest close to floor, push the floor away. Use incline push-ups if needed.";
+  if (has(/squat/)) return "For squats: feet around shoulder-width, brace your core, knees track over toes, sit between your hips, keep heels down, and stop at the depth you can control.";
+  if (has(/deadlift/)) return "For deadlifts: hinge at hips, keep bar close, brace hard, neutral spine, push the floor away, then lock out with glutes — do not yank with your back.";
+  if (has(/bench press|benching/)) return "For bench press: shoulder blades back, feet planted, wrists stacked, lower with control to mid-chest, then press up and slightly back. Use a spotter for heavy sets.";
+  if (has(/how many.*(set|rep)|sets.*reps|reps.*sets/)) return "General rule: strength 3–5 sets of 3–6 reps, muscle 3–4 sets of 8–12 reps, endurance 2–4 sets of 15–25 reps. Stop 1–2 reps before failure most sets.";
+  if (has(/why.*(tired|low energy|sleepy)|always tired|no energy/)) return "Low energy usually comes from poor sleep, low calories, dehydration, stress, too much training, or low iron/vitamin D. Fix sleep + food + water first; if it continues, get bloodwork.";
+  if (has(/how long.*(workout|train|gym)|workout.*duration/)) return "Most sessions should be 35–70 minutes. Quality matters more than living in the gym: warm-up, main lifts, accessories, then leave with energy to recover.";
+  if (has(/how often.*(workout|train|gym)|times.*week/)) return "A strong default is 3–5 workouts per week. Beginners: 3 full-body days. Intermediate: 4 days upper/lower. Advanced: 5 days if recovery is good.";
+
+  if (/^(what|why|how|when|where|can|should|do|does|is|are|will|which)\b/.test(last) || lastRaw.includes("?")) {
+    return `Short answer: yes, I can help with that. For "${lastRaw.slice(0, 80)}", the best next step is to give me your goal, your current situation, and any limits like time, equipment, ingredients, or allergies — then I’ll answer directly and keep it practical.`;
+  }
+
+  return null;
+}
+
 export function createCoachReply(messages: Pick<ChatMessage, "role" | "content">[]): string {
   const lastRaw = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
   const last = stripPunct(lastRaw);
@@ -454,6 +506,8 @@ export function createCoachReply(messages: Pick<ChatMessage, "role" | "content">
   if (/water|hydrat|drink/.test(last)) {
     return normalReply("Target ~30–40 ml per kg bodyweight per day, more if training or hot weather. Keep a bottle in sight — that's 80% of the battle.");
   }
+  const questionReply = directQuestionAnswer(lastRaw, last);
+  if (questionReply) return normalReply(questionReply);
   if (/what time|what day|what date|today.*date/.test(last)) {
     return normalReply(`It's ${new Date().toLocaleString()} on your device. Now — what are we doing with it?`);
   }
@@ -462,9 +516,6 @@ export function createCoachReply(messages: Pick<ChatMessage, "role" | "content">
   }
   if (/^(no|nope|nah)\b/.test(last)) {
     return normalReply("All good. What would you rather work on?");
-  }
-  if (/^(what|why|how|when|where|can|should|do|does|is|are|will)\b/.test(last) || lastRaw.includes("?")) {
-    return normalReply(`Good question. Short answer: pick one small action you can do today on "${lastRaw.slice(0, 60)}", do it, then ask me the next step. Give me your goal + time + what you have and I'll go specific.`);
   }
   return normalReply(pick([
     `Got you. Tell me more about "${lastRaw.slice(0, 60)}" — goal, time, what you have — and I'll give a clear next step.`,
