@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { fetchProfile } from "@/lib/profile-sync";
 
 const PUBLIC_ROUTES = new Set(["/auth", "/auth/callback", "/landing"]);
-const APP_ROUTES = new Set(["/", "/diet", "/workout", "/profile", "/chat", "/history"]);
 
 const TABS = [
   { to: "/", icon: Home, key: "home", label: "Home" },
