@@ -92,11 +92,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => { cancelled = true; window.removeEventListener("arc:profile-changed", onChanged); };
   }, [user?.id]);
 
-  if (!loading && !user && !isGuest && !isPublic && !isAppRoute) {
+  if (!loading && !user && !isGuest && !isPublic) {
     return <Navigate to="/landing" replace />;
   }
 
-  const effectiveOnboarded = isAppRoute ? true : user ? onboarded || getCachedOnboarded(user.id) : isGuest ? getCachedGuestOnboarded() : false;
+  const effectiveOnboarded = user
+    ? onboarded || getCachedOnboarded(user.id)
+    : isGuest
+      ? getCachedGuestOnboarded()
+      : false;
 
   if (!loading && (user || isGuest) && !isPublic && !isOnboarding) {
     if (user && (!onboardedKnown || onboardedUserId !== user.id)) {
