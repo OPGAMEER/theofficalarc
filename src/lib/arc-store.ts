@@ -97,6 +97,49 @@ function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
+// ------- per-user scoping -------
+// Every signed-in user gets their own isolated bucket of local data so no
+// personal plans, profile or logs leak between accounts on the same device.
+let currentUserId: string | null = null;
+const scopeListeners = new Set<(uid: string | null) => void>();
+
+function scopedKey(base: string, uid: string | null) {
+  return uid ? `${base}__${uid}` : `${base}__guest`;
+}
+
+function initScopeWatcher() {
+  if (typeof window === "undefined") return;
+  if ((initScopeWatcher as any).done) return;
+  (initScopeWatcher as any).done = true;
+  const apply = (uid: string | null) => {
+    if (uid === currentUserId) return;
+    currentUserId = uid;
+    scopeListeners.forEach((fn) => fn(uid));
+  };
+  supabase.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
+  supabase.auth.onAuthStateChange((_e, session) => apply(session?.user?.id ?? null));
+}
+
+function useScoped<T>(base: string, fallback: T) {
+  initScopeWatcher();
+  const [uid, setUid] = useState<string | null>(currentUserId);
+  const [value, setValue] = useState<T>(() => read<T>(scopedKey(base, currentUserId), fallback));
+
+  useEffect(() => {
+    const listener = (next: string | null) => {
+      setUid(next);
+      setValue(read<T>(scopedKey(base, next), fallback));
+    };
+    scopeListeners.add(listener);
+    return () => { scopeListeners.delete(listener); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base]);
+
+  useEffect(() => { write(scopedKey(base, uid), value); }, [base, uid, value]);
+
+  return [value, setValue, uid] as const;
+}
+
 // ------- profile (Supabase-backed when signed in, localStorage for guests) -------
 export function useProfile() {
   const [profile, setProfileLocal] = useState<Profile>(() => read(KEYS.profile, DEFAULT_PROFILE));
