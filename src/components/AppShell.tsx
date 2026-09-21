@@ -22,11 +22,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isAppRoute = APP_ROUTES.has(pathname);
   const isOnboarding = pathname === "/onboarding";
   const hideNav = isPublic || isOnboarding || pathname === "/chat";
-  useEffect(() => {
-    if (!isPublic && typeof window !== "undefined") {
-      try { localStorage.setItem("arc_guest", "1"); } catch {}
-    }
-  }, [isPublic]);
   const isGuest = (() => {
     try { return typeof window !== "undefined" && localStorage.getItem("arc_guest") === "1"; }
     catch { return false; }
