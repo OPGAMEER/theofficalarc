@@ -45,12 +45,11 @@ export default function Workout() {
   const isFemale = gender === "FEMALE";
   const genderLabel = isMale ? "MALE-ONLY" : isFemale ? "FEMALE-ONLY" : "ALL ATHLETES";
   const GenderIcon = isMale ? User : isFemale ? UserRound : Users;
-  const heroSrc = useMemo(
-    () => HERO_BY_GENDER[gender] || HERO_BY_GENDER.OTHER,
-    [gender]
-  );
-
   const [intake, setIntake] = useState({ location: "GYM" as "HOME"|"GYM", equipment: "", focus: "FULL BODY", duration_min: 45, variety: "fresh" as "fresh" | "familiar" });
+  const heroSrc = useMemo(() => {
+    const set = HERO_BY_PLACE[intake.location] || HERO_BY_PLACE.GYM;
+    return set[gender] || set.OTHER;
+  }, [gender, intake.location]);
   const focusOptions = ["UPPER", "LOWER", "FULL BODY", "PUSH", "PULL", "GLUTES", "ARMS", "CORE", "ATHLETIC"] as const;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
