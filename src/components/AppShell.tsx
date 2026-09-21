@@ -18,7 +18,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { user, loading } = useAuth();
   const isPublic = PUBLIC_ROUTES.has(pathname);
-  const isAppRoute = APP_ROUTES.has(pathname);
   const isOnboarding = pathname === "/onboarding";
   const hideNav = isPublic || isOnboarding || pathname === "/chat";
   const isGuest = (() => {
