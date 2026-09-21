@@ -51,7 +51,17 @@ export default function Chat() {
             <span className="block w-2 h-2 bg-[hsl(var(--accent))] animate-pulse-soft" />
             <span className="mono-label-strong">ARC · CHAT</span>
           </div>
-          <button onClick={() => navigate(-1)}><X size={20} /></button>
+          <div className="flex items-center gap-3">
+            {messages.length > 0 && (
+              <button
+                onClick={() => { endChat(); setInput(""); }}
+                className="border border-border px-3 py-1.5 mono-label-strong text-text hover:bg-inverse hover:text-text-inverse transition-colors"
+              >
+                END CHAT
+              </button>
+            )}
+            <button onClick={() => navigate(-1)} aria-label="Close chat"><X size={20} /></button>
+          </div>
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 pt-6 pb-32">
