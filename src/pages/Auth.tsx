@@ -63,14 +63,20 @@ export default function Auth() {
 
   const handleGoogle = async () => {
     setLoading(true);
+    try { localStorage.removeItem("arc_guest"); } catch { /* noop */ }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: "select_account" },
       }
     });
     if (error) {
-      toast({ title: "Google sign-in failed", description: String(error), variant: "destructive" });
+      toast({
+        title: "Google sign-in failed",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
       setLoading(false);
     }
   };
