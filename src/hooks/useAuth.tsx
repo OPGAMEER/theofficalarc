@@ -43,6 +43,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.removeItem(key);
         }
       }
+      // leaving the account also leaves guest mode, so the next visitor
+      // sees the welcome screen instead of someone else's session
+      localStorage.removeItem("arc_guest");
     } catch {}
     await supabase.auth.signOut();
   };

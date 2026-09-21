@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { fetchProfile } from "@/lib/profile-sync";
 
 const PUBLIC_ROUTES = new Set(["/auth", "/auth/callback", "/landing"]);
-const APP_ROUTES = new Set(["/", "/diet", "/workout", "/profile", "/chat", "/history"]);
 
 const TABS = [
   { to: "/", icon: Home, key: "home", label: "Home" },
@@ -19,14 +18,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const { user, loading } = useAuth();
   const isPublic = PUBLIC_ROUTES.has(pathname);
-  const isAppRoute = APP_ROUTES.has(pathname);
   const isOnboarding = pathname === "/onboarding";
   const hideNav = isPublic || isOnboarding || pathname === "/chat";
-  useEffect(() => {
-    if (!isPublic && typeof window !== "undefined") {
-      try { localStorage.setItem("arc_guest", "1"); } catch {}
-    }
-  }, [isPublic]);
   const isGuest = (() => {
     try { return typeof window !== "undefined" && localStorage.getItem("arc_guest") === "1"; }
     catch { return false; }
@@ -38,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const getCachedGuestOnboarded = () => {
     try {
       if (localStorage.getItem("arc_guest_onboarded") === "1") return true;
-      const p = JSON.parse(localStorage.getItem("arc_profile") || "null");
+      const p = JSON.parse(localStorage.getItem("arc_profile__guest") || "null");
       return !!(p?.name && p?.age && p?.sex && p?.goal);
     } catch { return false; }
   };
@@ -97,11 +90,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => { cancelled = true; window.removeEventListener("arc:profile-changed", onChanged); };
   }, [user?.id]);
 
-  if (!loading && !user && !isGuest && !isPublic && !isAppRoute) {
+  if (!loading && !user && !isGuest && !isPublic) {
     return <Navigate to="/landing" replace />;
   }
 
-  const effectiveOnboarded = isAppRoute ? true : user ? onboarded || getCachedOnboarded(user.id) : isGuest ? getCachedGuestOnboarded() : false;
+  const effectiveOnboarded = user
+    ? onboarded || getCachedOnboarded(user.id)
+    : isGuest
+      ? getCachedGuestOnboarded()
+      : false;
 
   if (!loading && (user || isGuest) && !isPublic && !isOnboarding) {
     if (user && (!onboardedKnown || onboardedUserId !== user.id)) {

@@ -97,44 +97,77 @@ function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
+// ------- per-user scoping -------
+// Every signed-in user gets their own isolated bucket of local data so no
+// personal plans, profile or logs leak between accounts on the same device.
+let currentUserId: string | null = null;
+const scopeListeners = new Set<(uid: string | null) => void>();
+
+function scopedKey(base: string, uid: string | null) {
+  return uid ? `${base}__${uid}` : `${base}__guest`;
+}
+
+function initScopeWatcher() {
+  if (typeof window === "undefined") return;
+  if ((initScopeWatcher as any).done) return;
+  (initScopeWatcher as any).done = true;
+  const apply = (uid: string | null) => {
+    if (uid === currentUserId) return;
+    currentUserId = uid;
+    scopeListeners.forEach((fn) => fn(uid));
+  };
+  supabase.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
+  supabase.auth.onAuthStateChange((_e, session) => apply(session?.user?.id ?? null));
+}
+
+function useScoped<T>(base: string, fallback: T) {
+  initScopeWatcher();
+  const [uid, setUid] = useState<string | null>(currentUserId);
+  const [value, setValue] = useState<T>(() => read<T>(scopedKey(base, currentUserId), fallback));
+
+  useEffect(() => {
+    const listener = (next: string | null) => {
+      setUid(next);
+      setValue(read<T>(scopedKey(base, next), fallback));
+    };
+    scopeListeners.add(listener);
+    return () => { scopeListeners.delete(listener); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base]);
+
+  useEffect(() => { write(scopedKey(base, uid), value); }, [base, uid, value]);
+
+  return [value, setValue, uid] as const;
+}
+
 // ------- profile (Supabase-backed when signed in, localStorage for guests) -------
 export function useProfile() {
-  const [profile, setProfileLocal] = useState<Profile>(() => read(KEYS.profile, DEFAULT_PROFILE));
-  const userIdRef = useRef<string | null>(null);
+  const [profile, setProfileLocal, uid] = useScoped<Profile>(KEYS.profile, DEFAULT_PROFILE);
   const hydrated = useRef(false);
 
-  // Subscribe to auth & hydrate from Supabase
+  // Hydrate the signed-in user's profile from Supabase (cross-device)
   useEffect(() => {
     let cancelled = false;
-    const hydrate = async (uid: string | null) => {
-      userIdRef.current = uid;
-      if (!uid) { hydrated.current = true; return; }
-      const remote = await fetchProfile(uid);
+    hydrated.current = false;
+    if (!uid) { hydrated.current = true; return; }
+    fetchProfile(uid).then((remote) => {
       if (cancelled) return;
-      if (remote) {
-        const merged = remoteToLocal(remote);
-        setProfileLocal(merged);
-        write(KEYS.profile, merged);
-      }
+      if (remote) setProfileLocal(remoteToLocal(remote));
       hydrated.current = true;
-    };
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      hydrate(session?.user?.id ?? null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      hydrated.current = false;
-      hydrate(session?.user?.id ?? null);
-    });
-    const onChanged = () => { /* trigger re-render via state */ setProfileLocal(p => ({ ...p })); };
+  useEffect(() => {
+    const onChanged = () => setProfileLocal((p) => ({ ...p }));
     window.addEventListener("arc:profile-changed", onChanged);
-    return () => { cancelled = true; subscription.unsubscribe(); window.removeEventListener("arc:profile-changed", onChanged); };
+    return () => window.removeEventListener("arc:profile-changed", onChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persist locally always; push to Supabase if signed in
+  // Push to Supabase if signed in
   useEffect(() => {
-    write(KEYS.profile, profile);
-    const uid = userIdRef.current;
     if (!uid || !hydrated.current) return;
     upsertProfile(uid, {
       name: profile.name || null,
@@ -148,77 +181,49 @@ export function useProfile() {
       streak: profile.streak,
       last_streak_date: profile.last_streak_date ?? null,
     });
-  }, [profile]);
+  }, [profile, uid]);
 
   const setProfile = (next: Profile | ((p: Profile) => Profile)) => {
-    setProfileLocal(prev => (typeof next === "function" ? (next as (p: Profile) => Profile)(prev) : next));
+    setProfileLocal((prev) => (typeof next === "function" ? (next as (p: Profile) => Profile)(prev) : next));
   };
 
   return { profile, setProfile };
 }
 
 export function useHealthToday() {
-  const [health, setHealth] = useState<Health>(() => {
-    const all = read<Record<string, Health>>(KEYS.health, {});
-    return all[todayKey()] || { water_ml: 0, sleep_hr: 0, steps: 0 };
-  });
-  useEffect(() => {
-    const all = read<Record<string, Health>>(KEYS.health, {});
-    all[todayKey()] = health;
-    write(KEYS.health, all);
-  }, [health]);
+  const [all, setAll] = useScoped<Record<string, Health>>(KEYS.health, {});
+  const health = all[todayKey()] || { water_ml: 0, sleep_hr: 0, steps: 0 };
+  const setHealth = (next: Health | ((h: Health) => Health)) => {
+    setAll((prev) => {
+      const cur = prev[todayKey()] || { water_ml: 0, sleep_hr: 0, steps: 0 };
+      const value = typeof next === "function" ? (next as (h: Health) => Health)(cur) : next;
+      return { ...prev, [todayKey()]: value };
+    });
+  };
   return { health, setHealth };
 }
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>(() => read<Task[]>(KEYS.tasks, []));
-  useEffect(() => { write(KEYS.tasks, tasks); }, [tasks]);
+  const [tasks, setTasks] = useScoped<Task[]>(KEYS.tasks, []);
   return { tasks, setTasks };
 }
 
 export function useWorkoutPlan() {
-  const [plan, setPlan] = useState<WorkoutPlan | null>(() => read<WorkoutPlan | null>(KEYS.workout, null));
-  useEffect(() => { write(KEYS.workout, plan); }, [plan]);
+  const [plan, setPlan] = useScoped<WorkoutPlan | null>(KEYS.workout, null);
   return { plan, setPlan };
 }
 
 export function useDietPlan() {
-  const [plan, setPlan] = useState<DietPlan | null>(() => read<DietPlan | null>(KEYS.diet, null));
-  useEffect(() => { write(KEYS.diet, plan); }, [plan]);
+  const [plan, setPlan] = useScoped<DietPlan | null>(KEYS.diet, null);
   return { plan, setPlan };
 }
 
 // Chat history is scoped per user so every signed-in user gets a fresh
 // conversation. Guests share an anonymous bucket that resets on sign-in.
 export function useChatHistory() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const keyFor = (uid: string | null) => (uid ? `${KEYS.chat}_${uid}` : `${KEYS.chat}_guest`);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => read<ChatMessage[]>(keyFor(null), []));
-
-  useEffect(() => {
-    let cancelled = false;
-    const apply = (uid: string | null) => {
-      if (cancelled) return;
-      setUserId(uid);
-      setMessages(read<ChatMessage[]>(keyFor(uid), []));
-    };
-    supabase.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const uid = session?.user?.id ?? null;
-      // Fresh chat on every new sign-in.
-      if (event === "SIGNED_IN" && uid) {
-        try { localStorage.removeItem(keyFor(uid)); } catch { /* noop */ }
-      }
-      if (event === "SIGNED_OUT") {
-        try { localStorage.removeItem(keyFor("guest" as unknown as string)); } catch { /* noop */ }
-      }
-      apply(uid);
-    });
-    return () => { cancelled = true; subscription.unsubscribe(); };
-  }, []);
-
-  useEffect(() => { write(keyFor(userId), messages); }, [messages, userId]);
-  return { messages, setMessages };
+  const [messages, setMessages] = useScoped<ChatMessage[]>(KEYS.chat, []);
+  const endChat = () => setMessages([]);
+  return { messages, setMessages, endChat };
 }
 
 export type { Profile, Task, Health, WorkoutPlan, DietPlan, ChatMessage };

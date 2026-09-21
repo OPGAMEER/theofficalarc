@@ -10,10 +10,18 @@ import { runInBackground } from "@/lib/resilient-actions";
 import { createWorkoutPlan } from "@/lib/arc-engine";
 
 
-const HERO_BY_GENDER: Record<string, string> = {
-  MALE:   "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-  FEMALE: "https://images.pexels.com/photos/3076509/pexels-photo-3076509.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-  OTHER:  "https://images.pexels.com/photos/4720766/pexels-photo-4720766.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+// Hero image changes with BOTH the training place (home / gym) and gender.
+const HERO_BY_PLACE: Record<"HOME" | "GYM", Record<string, string>> = {
+  GYM: {
+    MALE:   "https://images.pexels.com/photos/1552242/pexels-photo-1552242.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    FEMALE: "https://images.pexels.com/photos/3076509/pexels-photo-3076509.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    OTHER:  "https://images.pexels.com/photos/4720766/pexels-photo-4720766.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+  },
+  HOME: {
+    MALE:   "https://images.pexels.com/photos/4720236/pexels-photo-4720236.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    FEMALE: "https://images.pexels.com/photos/4056723/pexels-photo-4056723.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    OTHER:  "https://images.pexels.com/photos/4498482/pexels-photo-4498482.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+  },
 };
 
 const FALLBACK: WorkoutPlan = {
@@ -37,12 +45,11 @@ export default function Workout() {
   const isFemale = gender === "FEMALE";
   const genderLabel = isMale ? "MALE-ONLY" : isFemale ? "FEMALE-ONLY" : "ALL ATHLETES";
   const GenderIcon = isMale ? User : isFemale ? UserRound : Users;
-  const heroSrc = useMemo(
-    () => HERO_BY_GENDER[gender] || HERO_BY_GENDER.OTHER,
-    [gender]
-  );
-
   const [intake, setIntake] = useState({ location: "GYM" as "HOME"|"GYM", equipment: "", focus: "FULL BODY", duration_min: 45, variety: "fresh" as "fresh" | "familiar" });
+  const heroSrc = useMemo(() => {
+    const set = HERO_BY_PLACE[intake.location] || HERO_BY_PLACE.GYM;
+    return set[gender] || set.OTHER;
+  }, [gender, intake.location]);
   const focusOptions = ["UPPER", "LOWER", "FULL BODY", "PUSH", "PULL", "GLUTES", "ARMS", "CORE", "ATHLETIC"] as const;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
