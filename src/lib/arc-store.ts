@@ -221,34 +221,9 @@ export function useDietPlan() {
 // Chat history is scoped per user so every signed-in user gets a fresh
 // conversation. Guests share an anonymous bucket that resets on sign-in.
 export function useChatHistory() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const keyFor = (uid: string | null) => (uid ? `${KEYS.chat}_${uid}` : `${KEYS.chat}_guest`);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => read<ChatMessage[]>(keyFor(null), []));
-
-  useEffect(() => {
-    let cancelled = false;
-    const apply = (uid: string | null) => {
-      if (cancelled) return;
-      setUserId(uid);
-      setMessages(read<ChatMessage[]>(keyFor(uid), []));
-    };
-    supabase.auth.getSession().then(({ data: { session } }) => apply(session?.user?.id ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const uid = session?.user?.id ?? null;
-      // Fresh chat on every new sign-in.
-      if (event === "SIGNED_IN" && uid) {
-        try { localStorage.removeItem(keyFor(uid)); } catch { /* noop */ }
-      }
-      if (event === "SIGNED_OUT") {
-        try { localStorage.removeItem(keyFor("guest" as unknown as string)); } catch { /* noop */ }
-      }
-      apply(uid);
-    });
-    return () => { cancelled = true; subscription.unsubscribe(); };
-  }, []);
-
-  useEffect(() => { write(keyFor(userId), messages); }, [messages, userId]);
-  return { messages, setMessages };
+  const [messages, setMessages] = useScoped<ChatMessage[]>(KEYS.chat, []);
+  const endChat = () => setMessages([]);
+  return { messages, setMessages, endChat };
 }
 
 export type { Profile, Task, Health, WorkoutPlan, DietPlan, ChatMessage };
