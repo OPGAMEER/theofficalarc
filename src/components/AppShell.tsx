@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const getCachedGuestOnboarded = () => {
     try {
       if (localStorage.getItem("arc_guest_onboarded") === "1") return true;
-      const p = JSON.parse(localStorage.getItem("arc_profile") || "null");
+      const p = JSON.parse(localStorage.getItem("arc_profile__guest") || "null");
       return !!(p?.name && p?.age && p?.sex && p?.goal);
     } catch { return false; }
   };
