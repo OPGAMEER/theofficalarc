@@ -8,7 +8,7 @@ import { localChatReply, chatReplyPreferGroq } from "@/lib/local-chat";
 
 export default function Chat() {
   const navigate = useNavigate();
-  const { messages, setMessages } = useChatHistory();
+  const { messages, setMessages, endChat } = useChatHistory();
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
